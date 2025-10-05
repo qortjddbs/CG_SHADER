@@ -44,6 +44,7 @@ GLuint vao, vbo[2];
 bool num1, num2, num3, num4 = false;
 float bigDirX = 0.05f, bigDirY = 0.05f;
 float smallDirX = 0.03f, smallDirY = 0.03f;
+bool timerRunning = false;
 
 float mapToGLCoordX(int x) {
 	return (static_cast<float>(x) / (WINDOW_WIDTH / 2)) - 1.0f;
@@ -183,17 +184,27 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case '1':		// 대각선 이동
 		num1 = !num1;
 		if (num1) {
+			num2 = num3 = num4 = false;
 			bigDirX = 0.02f; bigDirY = 0.02f;
 			smallDirX = 0.01f; smallDirY = 0.01f;
-			glutTimerFunc(16, TimerFunction, 1);
+
+			if (!timerRunning) {
+				timerRunning = true;
+				glutTimerFunc(16, TimerFunction, 1);
+			}
 		}
 		break;
 	case '2':
 		num2 = !num2;
 		if (num2) {
+			num1 = num3 = num4 = false;
 			bigDirX = 0.02f; bigDirY = 0.2f;
 			smallDirX = 0.01f; smallDirY = 0.2f;
-			glutTimerFunc(16, TimerFunction, 1);
+
+			if (!timerRunning) {
+				timerRunning = true;
+				glutTimerFunc(16, TimerFunction, 1);
+			}
 		}
 		break;
 	case '3':
@@ -210,6 +221,11 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 }
 
 GLvoid TimerFunction(int value) {
+	if (!num1 && !num2 && !num3 && !num4) {
+		timerRunning = false;
+		return;
+	}
+
 	Shape& big = shapes[0];
 	Shape& small = shapes[1];
 	if (num1) {
