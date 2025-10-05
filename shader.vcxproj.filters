@@ -24,7 +24,7 @@
     <ClCompile Include="p9%28o%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="p10.cpp">
+    <ClCompile Include="p10%28%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
