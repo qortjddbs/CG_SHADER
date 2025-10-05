@@ -183,13 +183,18 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case '1':		// 대각선 이동
 		num1 = !num1;
 		if (num1) {
-			bigDirX = 0.05f; bigDirY = 0.05f;
-			smallDirX = 0.03f; smallDirY = 0.03f;
+			bigDirX = 0.02f; bigDirY = 0.02f;
+			smallDirX = 0.01f; smallDirY = 0.01f;
 			glutTimerFunc(16, TimerFunction, 1);
 		}
 		break;
 	case '2':
-		// 지그재그 이동
+		num2 = !num2;
+		if (num2) {
+			bigDirX = 0.02f; bigDirY = 0.2f;
+			smallDirX = 0.01f; smallDirY = 0.2f;
+			glutTimerFunc(16, TimerFunction, 1);
+		}
 		break;
 	case '3':
 		// 사각 스파이럴 이동
@@ -240,7 +245,36 @@ GLvoid TimerFunction(int value) {
 		small.centerY += smallDirY;
 	}
 	else if (num2) {
+		if (big.centerX + 0.1f >= 1.0f || big.centerX - 0.1f <= -1.0f) {
+			bigDirX *= -1;
+			for (int i = 0; i < 3; ++i) {
+				allVertices[(big.startIndex + i) * 3 + 1] += bigDirY;
+			}
+			big.centerY += bigDirY;
+		}
+		if (big.centerY + 0.5f >= 1.0f || big.centerY - 0.2f <= -1.0f) {
+			bigDirY *= -1;
+		}
 
+		if (small.centerX + 0.05f >= 1.0f || small.centerX - 0.05f <= -1.0f) {
+			smallDirX *= -1;
+			for (int i = 0; i < 3; ++i) {
+				allVertices[(small.startIndex + i) * 3 + 1] += smallDirY;
+			}
+			small.centerY += smallDirY;
+		}
+		if (small.centerY + 0.3f >= 1.0f || small.centerY - 0.2f <= -1.0f) {
+			smallDirY *= -1;
+		}
+
+		// x 값 변경
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3] += bigDirX;
+			allVertices[(small.startIndex + i) * 3] += smallDirX;
+		}
+
+		big.centerX += bigDirX;
+		small.centerX += smallDirX;
 	}
 	else if (num3) {
 
