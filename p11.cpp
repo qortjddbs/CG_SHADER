@@ -15,6 +15,7 @@ void make_fragmentShaders();
 GLuint make_shaderProgram();
 GLvoid drawScene();
 GLvoid Reshape(int w, int h);
+GLvoid TimerFunction(int value);
 //--- 필요한 변수 선언
 GLuint shaderProgramID; //--- 세이더 프로그램 이름
 GLuint vertexShader; //--- 버텍스 세이더 객체
@@ -23,6 +24,8 @@ GLuint fragmentShader; //--- 프래그먼트 세이더 객체
 std::random_device rd;  // 시드값을 얻기 위한 random_device 생성.
 std::mt19937 gen(rd());	// random_device 를 통해 난수 생성 엔진을 초기화 한다.
 std::uniform_real_distribution<float> dis_color(0.0f, 0.7f); // 0.0f 부터 1.0f 까지 균등하게 나타나는 난수열을 생성하기 위해 균등 분포 정의.
+std::uniform_real_distribution<float> dis_x(-0.7f, 0.4f);
+std::uniform_real_distribution<float> dis_y(-0.7f, 0.7f);
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -49,6 +52,8 @@ struct SpiralAnimation {
 	int maxPoints;           // 최대 점 개수
 	bool isExpanding;		// true : 확장 중, false : 수축 중
 	float maxRadius;		// 최대 반지름
+	bool hasPreviousPoint;	// 각 스파이럴별 이전 점 존재 여부
+	float prevX, prevY;		// 각 스파이럴별 이전 점 좌표
 };
 
 std::vector<GLfloat> allVertices;
@@ -57,7 +62,7 @@ std::vector<Shape> shapes;
 GLuint vao, vbo[2];
 
 // 스파이럴 애니메이션 객체
-SpiralAnimation currentSpiral = { 0.0f, 0.0f, 0.0f, 0.0f, false, 0, 64, true, 0.3f };
+std::vector<SpiralAnimation> spirals;
 
 float mapToGLCoordX(int x) {
 	return (static_cast<float>(x) / (WINDOW_WIDTH / 2)) - 1.0f;
@@ -140,13 +145,67 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		shapeType = 1; // 선
 		break;
 	case '1':
-		// 랜덤한 위치에 스파이럴 하나 그리기
+		spirals.clear();
+		spirals.push_back({
+			dis_x(gen), dis_y(gen),
+			0.0f,
+			0.01f,
+			true,
+			0,
+			64,
+			true,
+			0.3f,
+			false,
+			0.0f, 0.0f
+			});
+		bgColorR = dis_color(gen);
+		bgColorG = dis_color(gen);
+		bgColorB = dis_color(gen);
+
+		if (!timerRunning) {
+			timerRunning = true;
+			glutTimerFunc(16, TimerFunction, 1);
+		}
 		break;
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	{
+		// 숫자만큼 스파이럴 생성
+		int numSpirals = key - '0';
+		spirals.clear();
+
+		for (int i = 0; i < numSpirals; ++i) {
+			spirals.push_back({
+				dis_x(gen), dis_y(gen),  // centerX, centerY
+				0.0f,                    // angle
+				0.01f,                   // radius
+				true,                    // active
+				0,                       // pointCount
+				64,                      // maxPoints
+				true,                    // isExpanding
+				0.3f,                    // maxRadius
+				false,                   // hasPreviousPoint
+				0.0f, 0.0f              // prevX, prevY
+				});
+		}
+
+		bgColorR = dis_color(gen);
+		bgColorG = dis_color(gen);
+		bgColorB = dis_color(gen);
+
+		if (!timerRunning) {
+			timerRunning = true;
+			glutTimerFunc(16, TimerFunction, 1);
+		}
+	}
+	break;
 	case 'c':
 		allVertices.clear();
 		allColors.clear();
 		shapes.clear();
-		currentSpiral.active = false;
+		spirals.clear();
 		timerRunning = false;
 		break;
 	case 'q':
@@ -156,15 +215,16 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	glutPostRedisplay(); //--- 배경색이 바뀔 때마다 출력 콜백 함수를 호출하여 화면을 refresh 한다
 }
 
-void AddSpiralPoint() {
-	if (!currentSpiral.active) return;
+void AddSpiralPoint(SpiralAnimation& spiral) {
+	if (!spiral.active) return;
 
-		// 스파이럴 위치 계산
-		float x = currentSpiral.centerX + currentSpiral.radius * cos(currentSpiral.angle);
-		float y = currentSpiral.centerY + currentSpiral.radius * sin(currentSpiral.angle);
+	// 스파이럴 위치 계산
+	float x = spiral.centerX + spiral.radius * cos(spiral.angle);
+	float y = spiral.centerY + spiral.radius * sin(spiral.angle);
 
-		// 점 추가
-		Shape newShape;
+	Shape newShape;
+	// 점 추가
+	if (shapeType == 0) {
 		newShape.drawMode = GL_POINTS;
 		newShape.startIndex = allVertices.size() / 3;
 		newShape.vertexCount = 1;
@@ -178,44 +238,80 @@ void AddSpiralPoint() {
 		}
 
 		shapes.push_back(newShape);
+	}
+	else if (shapeType == 1) {
+		if (spiral.hasPreviousPoint) {
+			Shape newShape;
+			newShape.drawMode = GL_LINES;
+			newShape.startIndex = allVertices.size() / 3;
+			newShape.vertexCount = 2;
+			
+			allVertices.push_back(spiral.prevX);
+			allVertices.push_back(spiral.prevY);
+			allVertices.push_back(0.0f);
 
-		if (currentSpiral.isExpanding) {
-			currentSpiral.angle += 0.3f;
-			currentSpiral.radius += 0.005f;
+			allVertices.push_back(x);
+			allVertices.push_back(y);
+			allVertices.push_back(0.0f);
 
-			if (currentSpiral.pointCount >= currentSpiral.maxPoints - 2) {
-				currentSpiral.isExpanding = false;
+			for (int i = 0; i < 6; ++i) {
+				allColors.push_back(1.0f);
+			}
 
-				float finalX = currentSpiral.centerX + currentSpiral.radius * cos(currentSpiral.angle + 3.141592f);
-				float finalY = currentSpiral.centerY + currentSpiral.radius * sin(currentSpiral.angle + 3.141592f);
+			shapes.push_back(newShape);
+		}
+
+		spiral.prevX = x;
+		spiral.prevY = y;
+		spiral.hasPreviousPoint = true;
+	}
+
+		if (spiral.isExpanding) {
+			spiral.angle += 0.3f;
+			spiral.radius += 0.005f;
+
+			if (spiral.pointCount >= spiral.maxPoints - 2) {
+				spiral.isExpanding = false;
+
+				float finalX = spiral.centerX + spiral.radius * cos(spiral.angle + 3.141592f);
+				float finalY = spiral.centerY + spiral.radius * sin(spiral.angle + 3.141592f);
 
 				//currentSpiral.centerX = finalX  * cos(currentSpiral.angle + 3.141592f) + 0.001f;
 				//currentSpiral.centerY = finalY  * sin(currentSpiral.angle + 3.141592f) - 0.2f;
 
-				currentSpiral.centerX += 0.3145864306 * 2;
-				currentSpiral.centerY += 0.016387239 * 2;
+				spiral.centerX += 0.3145864306 * 2;
+				spiral.centerY += 0.016387239 * 2;
 
-				currentSpiral.angle += 3.141592f;
+				spiral.angle += 3.141592f;
 			}
 		}
 		else {
-			currentSpiral.angle -= 0.3f;
-			currentSpiral.radius -= 0.005f;
+			spiral.angle -= 0.3f;
+			spiral.radius -= 0.005f;
 
-			if (currentSpiral.radius <= 0.01f) {
-				currentSpiral.active = false;
-				timerRunning = false;
+			if (spiral.radius <= 0.01f) {
+				spiral.active = false;
+				spiral.hasPreviousPoint = false;
 			}
 		}
 
-		currentSpiral.pointCount++;
+		spiral.pointCount++;
 
 	UpdateBuffer();
 }
 
 GLvoid TimerFunction(int value) {
-	if (currentSpiral.active) {
-		AddSpiralPoint();
+	bool hasActiveSpiral = false;
+
+	for (auto& spiral : spirals) {
+		if (spiral.active) {
+			AddSpiralPoint(spiral);
+			hasActiveSpiral = true;
+		}
+	}
+
+	if (hasActiveSpiral) {
+		UpdateBuffer();
 		glutPostRedisplay();
 		glutTimerFunc(16, TimerFunction, 1); // 다음 프레임을 위한 타이머 설정
 	}
@@ -229,14 +325,19 @@ GLvoid Mouse(int button, int state, int x, int y)
 	float Mouse_x = mapToGLCoordX(x);
 	float Mouse_y = mapToGLCoordY(y);
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-		// 새로운 스파이럴 애니메이션 시작
-		currentSpiral.centerX = Mouse_x;
-		currentSpiral.centerY = Mouse_y;
-		currentSpiral.angle = 0.0f;
-		currentSpiral.radius = 0.01f;
-		currentSpiral.active = true;
-		currentSpiral.pointCount = 0;
-		currentSpiral.isExpanding = true;
+		// 새로운 스파이럴 하나 추가
+		spirals.push_back({
+			Mouse_x, Mouse_y,        // centerX, centerY
+			0.0f,                    // angle
+			0.01f,                   // radius
+			true,                    // active
+			0,                       // pointCount
+			64,                      // maxPoints
+			true,                    // isExpanding
+			0.3f,                    // maxRadius
+			false,                   // hasPreviousPoint
+			0.0f, 0.0f              // prevX, prevY
+			});
 		bgColorR = dis_color(gen);
 		bgColorG = dis_color(gen);
 		bgColorB = dis_color(gen);
