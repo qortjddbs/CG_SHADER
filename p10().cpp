@@ -32,7 +32,7 @@ std::uniform_real_distribution<float> dis_size(0.05f, 0.15f);
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-int currentShape = 0;
+int shapeType = 0;
 int selectedShapeIndex = -1;
 int triangleMode = 0; // 0: 면(GL_TRIANGLES), 1: 선(GL_LINE_LOOP)
 
@@ -57,7 +57,7 @@ bool timerRunning = false;
 std::vector<float> triangleDirX, triangleDirY;
 
 // 원 스파이럴 이동용 변수들
-std::vector<float> triangleAngle, triangleRadius;
+std::vector<float> spiralAngle, spiralRadius;
 std::vector<float> triangleCenterX, triangleCenterY;
 
 // 사각 스파이럴 이동용 변수들
@@ -99,8 +99,8 @@ void InitMovementData() {
 	
 	triangleDirX.resize(triangleCount);
 	triangleDirY.resize(triangleCount);
-	triangleAngle.resize(triangleCount);
-	triangleRadius.resize(triangleCount);
+	spiralAngle.resize(triangleCount);
+	spiralRadius.resize(triangleCount);
 	triangleCenterX.resize(triangleCount);
 	triangleCenterY.resize(triangleCount);
 	triangleSpiralDirection.resize(triangleCount);
@@ -112,8 +112,8 @@ void InitMovementData() {
 	for (int i = 0; i < triangleCount; i++) {
 		triangleDirX[i] = (i % 2 == 0) ? 0.02f : 0.015f;
 		triangleDirY[i] = (i % 2 == 0) ? 0.02f : 0.015f;
-		triangleAngle[i] = 0.0f;
-		triangleRadius[i] = (i % 2 == 0) ? 0.1f : 0.08f;
+		spiralAngle[i] = 0.0f;
+		spiralRadius[i] = (i % 2 == 0) ? 0.1f : 0.08f;
 		triangleSpiralDirection[i] = 0;
 		triangleStepsInDirection[i] = 0;
 		triangleStepsToMove[i] = 1;
@@ -308,14 +308,14 @@ void AddShape(float x, float y, int shapeType) {
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x - size);
-	allVertices.push_back(y - height * 0.5f);
+	allVertices.push_back(x - size + 0.01f);
+	allVertices.push_back(y - height * 1.0f);
 	allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x + size);
-	allVertices.push_back(y - height * 0.5f);
+	allVertices.push_back(x + size - 0.01f);
+	allVertices.push_back(y - height * 1.0f);
 	allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
@@ -653,8 +653,8 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 			int triangleIndex = 0;
 			for (int i = 0; i < shapes.size(); i++) {
 				if (shapes[i].shapeType == 2) { // 삼각형만
-					triangleAngle[triangleIndex] = 0.0f;
-					triangleRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
+					spiralAngle[triangleIndex] = 0.0f;
+					spiralRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
 					triangleCenterX[triangleIndex] = shapes[i].centerX;
 					triangleCenterY[triangleIndex] = shapes[i].centerY;
 					triangleIndex++;
@@ -697,16 +697,16 @@ GLvoid Mouse(int button, int state, int x, int y)
 			if (button == GLUT_LEFT_BUTTON) {
 				// 왼쪽 클릭: 해당 사분면의 기존 삼각형들 제거 후 새 삼각형 생성
 				RemoveInitTriangleInQuadrant(quadrant);
-				AddShape(Mouse_x, Mouse_y, currentShape);
+				AddShape(Mouse_x, Mouse_y, shapeType);
 			}
 			else if (button == GLUT_RIGHT_BUTTON) {
 				// 오른쪽 클릭: 해당 사분면에 최대 4개까지 삼각형 추가
 				if (CountTrianglesInQuadrant(quadrant) < 4) {
-					AddShape(Mouse_x, Mouse_y, currentShape);
+					AddShape(Mouse_x, Mouse_y, shapeType);
 				}
 				else if (CountTrianglesInQuadrant(quadrant) >= 4) {
 					RemoveFirstTriangleInQuadrant(quadrant);
-					AddShape(Mouse_x, Mouse_y, currentShape);
+					AddShape(Mouse_x, Mouse_y, shapeType);
 				}
 			}
 		}
@@ -816,14 +816,14 @@ GLvoid TimerFunction(int value) {
 		}
 		else if (num4) {		// 원 스파이럴 이동
 			// 각도 증가 (각 삼각형마다 다른 속도)
-			triangleAngle[triangleIndex] += (triangleIndex % 2 == 0) ? 0.1f : 0.15f;
+			spiralAngle[triangleIndex] += (triangleIndex % 2 == 0) ? 0.1f : 0.15f;
 
 			// 반지름 증가 (스파이럴 효과)
-			triangleRadius[triangleIndex] += (triangleIndex % 2 == 0) ? 0.002f : 0.001f;
+			spiralRadius[triangleIndex] += (triangleIndex % 2 == 0) ? 0.002f : 0.001f;
 
 			// 새로운 위치 계산
-			float newCenterX = triangleCenterX[triangleIndex] + triangleRadius[triangleIndex] * cos(triangleAngle[triangleIndex]);
-			float newCenterY = triangleCenterY[triangleIndex] + triangleRadius[triangleIndex] * sin(triangleAngle[triangleIndex]);
+			float newCenterX = triangleCenterX[triangleIndex] + spiralRadius[triangleIndex] * cos(spiralAngle[triangleIndex]);
+			float newCenterY = triangleCenterY[triangleIndex] + spiralRadius[triangleIndex] * sin(spiralAngle[triangleIndex]);
 
 			// 이동할 거리 계산
 			float deltaX = newCenterX - triangle.centerX;
@@ -840,9 +840,9 @@ GLvoid TimerFunction(int value) {
 			triangle.centerY = newCenterY;
 
 			// 화면 경계를 벗어나면 리셋
-			if (triangleRadius[triangleIndex] > 0.8f) {
-				triangleRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
-				triangleAngle[triangleIndex] = 0.0f;
+			if (spiralRadius[triangleIndex] > 0.8f) {
+				spiralRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
+				spiralAngle[triangleIndex] = 0.0f;
 			}
 		}
 

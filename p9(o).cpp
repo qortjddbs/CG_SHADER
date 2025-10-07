@@ -31,7 +31,7 @@ std::uniform_real_distribution<float> dis_size(0.05f, 0.15f); // 삼각형 크기용 �
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-int currentShape = 0;
+int shapeType = 0;
 int selectedShapeIndex = -1;
 int triangleMode = 0; // 0: 면(GL_TRIANGLES), 1: 선(GL_LINE_LOOP)
 
@@ -614,16 +614,16 @@ GLvoid Mouse(int button, int state, int x, int y)
 			if (button == GLUT_LEFT_BUTTON) {
 				// 왼쪽 클릭: 해당 사분면의 기존 삼각형들 제거 후 새 삼각형 생성
 				RemoveInitTriangleInQuadrant(quadrant);
-				AddShape(Mouse_x, Mouse_y, currentShape);
+				AddShape(Mouse_x, Mouse_y, shapeType);
 			}
 			else if (button == GLUT_RIGHT_BUTTON) {
 				// 오른쪽 클릭: 해당 사분면에 최대 4개까지 삼각형 추가
 				if (CountTrianglesInQuadrant(quadrant) < 4) {
-					AddShape(Mouse_x, Mouse_y, currentShape);
+					AddShape(Mouse_x, Mouse_y, shapeType);
 				}
 				else if (CountTrianglesInQuadrant(quadrant) >= 4) {
 					RemoveFirstTriangleInQuadrant(quadrant);
-					AddShape(Mouse_x, Mouse_y, currentShape);
+					AddShape(Mouse_x, Mouse_y, shapeType);
 				}
 			}
 		}

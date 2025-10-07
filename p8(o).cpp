@@ -29,7 +29,7 @@ std::uniform_real_distribution<float> dis_color(0.0f, 1.0f); // 0.0f 부터 1.0f �
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-int currentShape = 0;
+int shapeType = 0;
 int selectedShapeIndex = -1;
 
 struct Shape {
@@ -286,10 +286,10 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
 	case 'p':
-		currentShape = 0; // 점
+		shapeType = 0; // 점
 		break;
 	case 'l':	// 우하향
-		currentShape = 1; // 선
+		shapeType = 1; // 선
 		if (selectedShapeIndex != -1) {
 			Shape& shape = shapes[selectedShapeIndex];
 			for (int i = 0; i < shape.vertexCount; ++i) {
@@ -300,10 +300,10 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		}
 		break;
 	case 't':
-		currentShape = 2; // 삼각형
+		shapeType = 2; // 삼각형
 		break;
 	case 'r':
-		currentShape = 3; // 사각형
+		shapeType = 3; // 사각형
 		break;
 	case 'w':
 		if (selectedShapeIndex != -1) {
@@ -386,7 +386,7 @@ GLvoid Mouse(int button, int state, int x, int y)
 	float Mouse_x = mapToGLCoordX(x);
 	float Mouse_y = mapToGLCoordY(y);
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-		if (shapes.size() < 10) AddShape(Mouse_x, Mouse_y, currentShape);
+		if (shapes.size() < 10) AddShape(Mouse_x, Mouse_y, shapeType);
 		else {
 			selectedShapeIndex = -1;
 
