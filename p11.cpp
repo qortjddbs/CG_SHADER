@@ -45,6 +45,8 @@ struct SpiralAnimation {
 	bool active;             // 애니메이션 활성화 상태
 	int pointCount;          // 현재까지 생성된 점의 개수
 	int maxPoints;           // 최대 점 개수
+	bool isExpanding;		// true : 확장 중, false : 수축 중
+	float maxRadius;		// 최대 반지름
 };
 
 std::vector<GLfloat> allVertices;
@@ -53,7 +55,7 @@ std::vector<Shape> shapes;
 GLuint vao, vbo[2];
 
 // 스파이럴 애니메이션 객체
-SpiralAnimation currentSpiral = { 0.0f, 0.0f, 0.0f, 0.0f, false, 0, 100 };
+SpiralAnimation currentSpiral = { 0.0f, 0.0f, 0.0f, 0.0f, false, 0, 64, true, 0.3f };
 
 float mapToGLCoordX(int x) {
 	return (static_cast<float>(x) / (WINDOW_WIDTH / 2)) - 1.0f;
@@ -116,7 +118,7 @@ GLvoid drawScene()
 	glBindVertexArray(vao);
 
 	// 점 크기 설정
-	glPointSize(5.0f);
+	glPointSize(3.0f);
 
 	// 각 도형별로 그리기
 	for (const auto& shape : shapes) {
@@ -155,36 +157,56 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 void AddSpiralPoint() {
 	if (!currentSpiral.active) return;
 
-	// 스파이럴 위치 계산
-	float x = currentSpiral.centerX + currentSpiral.radius * cos(currentSpiral.angle);
-	float y = currentSpiral.centerY + currentSpiral.radius * sin(currentSpiral.angle);
+		// 스파이럴 위치 계산
+		float x = currentSpiral.centerX + currentSpiral.radius * cos(currentSpiral.angle);
+		float y = currentSpiral.centerY + currentSpiral.radius * sin(currentSpiral.angle);
 
-	// 점 추가
-	Shape newShape;
-	newShape.drawMode = GL_POINTS;
-	newShape.startIndex = allVertices.size() / 3;
-	newShape.vertexCount = 1;
+		// 점 추가
+		Shape newShape;
+		newShape.drawMode = GL_POINTS;
+		newShape.startIndex = allVertices.size() / 3;
+		newShape.vertexCount = 1;
 
-	allVertices.push_back(x);
-	allVertices.push_back(y);
-	allVertices.push_back(0.0f);
-	
-	for (int i = 0; i < 3; ++i) {
-		allColors.push_back(0.5f);
-	}
+		allVertices.push_back(x);
+		allVertices.push_back(y);
+		allVertices.push_back(0.0f);
 
-	shapes.push_back(newShape);
+		for (int i = 0; i < 3; ++i) {
+			allColors.push_back(0.0f);
+		}
 
-	// 스파이럴 파라미터 업데이트
-	currentSpiral.angle += 0.1f;
-	currentSpiral.radius += 0.005f;
-	currentSpiral.pointCount++;
+		shapes.push_back(newShape);
 
-	// 최대 점 개수에 도달하면 애니메이션 종료
-	if (currentSpiral.pointCount >= currentSpiral.maxPoints) {
-		currentSpiral.active = false;
-		timerRunning = false;
-	}
+		if (currentSpiral.isExpanding) {
+			currentSpiral.angle += 0.3f;
+			currentSpiral.radius += 0.005f;
+
+			if (currentSpiral.pointCount >= currentSpiral.maxPoints - 2) {
+				currentSpiral.isExpanding = false;
+
+				float finalX = currentSpiral.centerX + currentSpiral.radius * cos(currentSpiral.angle + 3.141592f);
+				float finalY = currentSpiral.centerY + currentSpiral.radius * sin(currentSpiral.angle + 3.141592f);
+
+				//currentSpiral.centerX = finalX  * cos(currentSpiral.angle + 3.141592f) + 0.001f;
+				//currentSpiral.centerY = finalY  * sin(currentSpiral.angle + 3.141592f) - 0.2f;
+
+				currentSpiral.centerX += 0.3145864306 * 2;
+				currentSpiral.centerY += 0.016387239 * 2;
+
+				currentSpiral.angle += 3.141592f;
+			}
+		}
+		else {
+			currentSpiral.angle -= 0.3f;
+			currentSpiral.radius -= 0.005f;
+
+			if (currentSpiral.radius <= 0.01f) {
+				currentSpiral.active = false;
+				timerRunning = false;
+			}
+		}
+
+		currentSpiral.pointCount++;
 
 	UpdateBuffer();
 }
@@ -193,7 +215,7 @@ GLvoid TimerFunction(int value) {
 	if (currentSpiral.active) {
 		AddSpiralPoint();
 		glutPostRedisplay();
-		glutTimerFunc(50, TimerFunction, 1); // 다음 프레임을 위한 타이머 설정
+		glutTimerFunc(16, TimerFunction, 1); // 다음 프레임을 위한 타이머 설정
 	}
 	else {
 		timerRunning = false;
@@ -212,10 +234,11 @@ GLvoid Mouse(int button, int state, int x, int y)
 		currentSpiral.radius = 0.01f;
 		currentSpiral.active = true;
 		currentSpiral.pointCount = 0;
+		currentSpiral.isExpanding = true;
 
 		if (!timerRunning) {
 			timerRunning = true;
-			glutTimerFunc(50, TimerFunction, 1);
+			glutTimerFunc(16, TimerFunction, 1);
 		}
 	}
 
