@@ -22,14 +22,16 @@ GLuint fragmentShader; //--- 프래그먼트 세이더 객체
 
 std::random_device rd;  // 시드값을 얻기 위한 random_device 생성.
 std::mt19937 gen(rd());	// random_device 를 통해 난수 생성 엔진을 초기화 한다.
-std::uniform_real_distribution<float> dis_color(0.0f, 1.0f); // 0.0f 부터 1.0f 까지 균등하게 나타나는 난수열을 생성하기 위해 균등 분포 정의.
-
+std::uniform_real_distribution<float> dis_color(0.0f, 0.7f); // 0.0f 부터 1.0f 까지 균등하게 나타나는 난수열을 생성하기 위해 균등 분포 정의.
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
 int shapeType = 0;
 bool timerRunning = false;
+float bgColorR = 0.0f;
+float bgColorG = 0.0f;
+float bgColorB = 0.0f;
 
 struct Shape {
 	GLenum drawMode;
@@ -103,7 +105,7 @@ char* filetobuf(const char* file)
 GLvoid drawScene()
 {
 	//--- 변경된 배경색 설정
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(bgColorR, bgColorG, bgColorB, 1.0f);		// 흰색
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//--- 렌더링 파이프라인에 세이더 불러오기
 
@@ -134,7 +136,7 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case 'p':
 		shapeType = 0; // 점
 		break;
-	case 'l':	// 우하향
+	case 'l':
 		shapeType = 1; // 선
 		break;
 	case '1':
@@ -172,7 +174,7 @@ void AddSpiralPoint() {
 		allVertices.push_back(0.0f);
 
 		for (int i = 0; i < 3; ++i) {
-			allColors.push_back(0.0f);
+			allColors.push_back(1.0f);
 		}
 
 		shapes.push_back(newShape);
@@ -235,6 +237,9 @@ GLvoid Mouse(int button, int state, int x, int y)
 		currentSpiral.active = true;
 		currentSpiral.pointCount = 0;
 		currentSpiral.isExpanding = true;
+		bgColorR = dis_color(gen);
+		bgColorG = dis_color(gen);
+		bgColorB = dis_color(gen);
 
 		if (!timerRunning) {
 			timerRunning = true;
