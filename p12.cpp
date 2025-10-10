@@ -9,12 +9,14 @@
 #include <random>
 #include <vector>
 #include <cmath>
+#include <chrono>
 //--- 아래 5개 함수는 사용자 정의 함수임
 void make_vertexShaders();
 void make_fragmentShaders();
 GLuint make_shaderProgram();
 GLvoid drawScene();
 GLvoid Reshape(int w, int h);
+GLvoid Timer(int value);
 //--- 필요한 변수 선언
 GLint width, height;
 GLuint shaderProgramID; //--- 세이더 프로그램 이름
@@ -117,6 +119,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	shapes.push_back(LineY);
 	UpdateBuffer();
 
+	// 변하는 애니메이션 있어야되니까 각 도형들에 버텍스 9개씩 할당하기 (오각형이 9개 필요하기 때문)
 	// 1사분면 - 삼각형
 	Shape newShape1;
 	newShape1.startIndex = allVertices.size() / 3;
@@ -143,6 +146,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
+
 	newShape1.drawMode = GL_TRIANGLES;
 	newShape1.vertexCount = 3;
 	newShape1.shapeType = 3; // 삼각형 타입
@@ -169,6 +173,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
+
 	newShape2.drawMode = GL_LINES;
 	newShape2.vertexCount = 2;
 	newShape2.shapeType = 2;
@@ -304,6 +309,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 
 void changeShapes() {
 	for (int i = shapes.size() - 1; i >= 0; --i) {
+		// 선 -> 삼각형
 		if (command == 2 && shapes[i].shapeType == 2) {
 			Shape newShape1;
 			newShape1.startIndex = allVertices.size() / 3;
@@ -337,6 +343,7 @@ void changeShapes() {
 			shapes.push_back(newShape1);
 			shapes.erase(shapes.begin() + i);
 		}
+		// 삼각형 -> 사각형
 		else if (command == 3 && shapes[i].shapeType == 3) {
 			Shape newShape3;
 			newShape3.startIndex = allVertices.size() / 3;
@@ -389,6 +396,7 @@ void changeShapes() {
 			shapes.push_back(newShape3);
 			shapes.erase(shapes.begin() + i);
 		}
+		// 사각형 -> 오각형
 		else if (command == 4 && shapes[i].shapeType == 4) {
 			Shape newShape4;
 			newShape4.startIndex = allVertices.size() / 3;
@@ -464,6 +472,7 @@ void changeShapes() {
 			shapes.push_back(newShape4);
 			shapes.erase(shapes.begin() + i);
 		}
+		// 오각형 -> 선
 		else if (command == 5 && shapes[i].shapeType == 5) {
 			Shape newShape2;
 			newShape2.startIndex = allVertices.size() / 3;
