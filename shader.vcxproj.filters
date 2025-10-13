@@ -30,7 +30,7 @@
     <ClCompile Include="p11%28%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="p12.cpp">
+    <ClCompile Include="p12%28%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
