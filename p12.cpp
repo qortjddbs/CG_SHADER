@@ -9,7 +9,6 @@
 #include <random>
 #include <vector>
 #include <cmath>
-#include <chrono>
 //--- 아래 5개 함수는 사용자 정의 함수임
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -35,12 +34,18 @@ std::uniform_real_distribution<float> dis_size(0.05f, 0.15f); // 삼각형 크기용 �
 
 int command = 0;
 
+// 애니메이션 관련 변수
+bool isAnimating = false;
+// int animationStep = 0;
+
 struct Shape {
 	GLenum drawMode;
 	int startIndex;
 	int vertexCount;
 	float centerX, centerY;
 	int shapeType;	// 1 : 점, 2 : 선, 3 : 삼각형, 4 : 사각형, 5 : 오각형
+	bool isTransforming;
+	int quadrant;	// 도형이 어느 사분면에 있는지
 };
 
 std::vector<GLfloat> allVertices;
@@ -92,6 +97,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	LineX.centerX = 0.0f;
 	LineX.centerY = 0.0f;
 	LineX.shapeType = 0; // 축
+	LineX.quadrant = 0;
 
 	shapes.push_back(LineX);
 	UpdateBuffer();
@@ -115,6 +121,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	LineY.centerX = 0.0f;
 	LineY.centerY = 0.0f;
 	LineY.shapeType = 0; // 축
+	LineY.quadrant = 0;
 
 	shapes.push_back(LineY);
 	UpdateBuffer();
@@ -146,10 +153,20 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
+	
+	for (int i = 0; i < 6; ++i) {
+		allVertices.push_back(x + 0.15f);
+		allVertices.push_back(y - 0.15f);
+		allVertices.push_back(0.0f);
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+	}
 
 	newShape1.drawMode = GL_TRIANGLES;
 	newShape1.vertexCount = 3;
 	newShape1.shapeType = 3; // 삼각형 타입
+	newShape1.quadrant = 1;
 
 	shapes.push_back(newShape1);
 
@@ -174,9 +191,19 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 
+	for (int i = 0; i < 7; ++i) {
+		allVertices.push_back(x - 0.25f);
+		allVertices.push_back(y - 0.25f);
+		allVertices.push_back(0.0f);
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+	}
+
 	newShape2.drawMode = GL_LINES;
 	newShape2.vertexCount = 2;
 	newShape2.shapeType = 2;
+	newShape2.quadrant = 2;
 
 	shapes.push_back(newShape2);
 
@@ -226,9 +253,22 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 
+
+	for (int i = 0; i < 3; ++i) {
+		allVertices.push_back(x + 0.25f);
+		allVertices.push_back(y - 0.25f);
+		allVertices.push_back(0.0f);
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+		allColors.push_back(dis_color(gen));
+
+	}
+
 	newShape3.drawMode = GL_TRIANGLES;
 	newShape3.vertexCount = 6;
 	newShape3.shapeType = 4;
+	newShape3.quadrant = 3;
+
 	shapes.push_back(newShape3);
 
 	// 4사분면 - 오각형 (삼각형 3개)
@@ -302,206 +342,226 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	newShape4.drawMode = GL_TRIANGLES;
 	newShape4.vertexCount = 9;
 	newShape4.shapeType = 5; // 삼각형 타입
+	newShape4.quadrant = 4;
 
 	shapes.push_back(newShape4);
 	UpdateBuffer();
+}
+
+GLvoid Timer(int value) {
+	bool anyAnimating = false;
+
+	for (int i = shapes.size() - 1; i >= 0; --i) {
+		if (shapes[i].isTransforming) {
+			anyAnimating = true;
+			int baseIndex = shapes[i].startIndex * 3;
+
+			// 2사분면
+			if (shapes[i].quadrant == 2) {
+				switch (shapes[i].shapeType) {
+				case 2:		// 선 -> 삼각형
+					if (command == 2) {
+						shapes[i].drawMode = GL_TRIANGLES;
+						shapes[i].vertexCount = 3;
+
+						// 첫 번째 점: (-0.25, 0.75) -> (-0.5, 0.8)
+						if (allVertices[baseIndex] > -0.5f) {
+							allVertices[baseIndex] -= 0.01f;
+						}
+						if (allVertices[baseIndex + 1] < 0.8f) {
+							allVertices[baseIndex + 1] += 0.01f;
+						}
+
+						// 두 번째 점: (-0.75, 0.25) -> (-0.65, 0.35)
+						if (allVertices[baseIndex + 3] < -0.65f) {
+							allVertices[baseIndex + 3] += 0.01f;
+						}
+						if (allVertices[baseIndex + 4] < 0.35f) {
+							allVertices[baseIndex + 4] += 0.01f;
+						}
+
+						// 세 번째 점: (-0.75, 0.25) -> (-0.35, 0.35)
+						if (allVertices[baseIndex + 6] < -0.35f) {
+							allVertices[baseIndex + 6] += 0.01f;
+						}
+						if (allVertices[baseIndex + 7] < 0.35f) {
+							allVertices[baseIndex + 7] += 0.01f;
+						}
+
+						// 목표 지점에 도달했는지 확인
+						if (fabs(allVertices[baseIndex] - (-0.5f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 1] - 0.8f) < 0.01f &&
+							fabs(allVertices[baseIndex + 3] - (-0.65f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 4] - 0.35f) < 0.01f &&
+							fabs(allVertices[baseIndex + 6] - (-0.35f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 7] - 0.35f) < 0.01f) {
+							allVertices[baseIndex] = -0.5f;
+							allVertices[baseIndex + 1] = 0.8f;
+							allVertices[baseIndex + 3] = -0.65f;
+							allVertices[baseIndex + 4] = 0.35f;
+							allVertices[baseIndex + 6] = -0.35f;
+							allVertices[baseIndex + 7] = 0.35f;
+							shapes[i].shapeType = 3;
+							shapes[i].isTransforming = false;
+						}
+						break;
+					}
+				case 3:	// 삼각형 -> 사각형
+					if (command == 3) {
+						shapes[i].drawMode = GL_TRIANGLES;
+						shapes[i].vertexCount = 6;
+
+						// 첫 번째 점: (-0.5, 0.8) -> (-0.75, 0.75)
+						if (allVertices[baseIndex] > -0.75f) {
+							allVertices[baseIndex] -= 0.01f;
+						}
+						if (allVertices[baseIndex + 1] > 0.75f) {
+							allVertices[baseIndex + 1] -= 0.01f;
+						}
+
+						// 두 번째 점: (-0.65, 0.35) -> (-0.75, 0.25)
+						if (allVertices[baseIndex + 3] > -0.75f) {
+							allVertices[baseIndex + 3] -= 0.01f;
+						}
+						if (allVertices[baseIndex + 4] > 0.25f) {
+							allVertices[baseIndex + 4] -= 0.01f;
+						}
+
+						// 세 번째 점: (-0.35, 0.35) -> (-0.25, 0.25)
+						if (allVertices[baseIndex + 6] < -0.25f) {
+							allVertices[baseIndex + 6] += 0.01f;
+						}
+						if (allVertices[baseIndex + 7] > 0.25f) {
+							allVertices[baseIndex + 7] -= 0.01f;
+						}
+
+						// 네 번째 점: (-0.75, 0.25) -> (-0.25, 0.75)
+						if (allVertices[baseIndex + 9] < -0.25f) {
+							allVertices[baseIndex + 9] += 0.01f;
+						}
+						if (allVertices[baseIndex + 10] < 0.75f) {
+							allVertices[baseIndex + 10] += 0.01f;
+						}
+
+						// 다섯 번째 점: (-0.75, 0.25) -> (-0.75, 0.75)
+						if (allVertices[baseIndex + 12] > -0.75f) {
+							allVertices[baseIndex + 12] -= 0.01f;
+						}
+						if (allVertices[baseIndex + 13] < 0.75f) {
+							allVertices[baseIndex + 13] += 0.01f;
+						}
+
+						// 여섯 번째 점: (-0.75, 0.25) -> (-0.25, 0.25)
+						if (allVertices[baseIndex + 15] < -0.25f) {
+							allVertices[baseIndex + 15] += 0.01f;
+						}
+						if (allVertices[baseIndex + 16] > 0.25f) {
+							allVertices[baseIndex + 16] -= 0.01f;
+						}
+
+						// 목표 지점에 도달했는지 확인
+						if (fabs(allVertices[baseIndex] - (-0.75f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 1] - 0.75f) < 0.01f &&
+							fabs(allVertices[baseIndex + 3] - (-0.75f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 4] - 0.25f) < 0.01f &&
+							fabs(allVertices[baseIndex + 6] - (-0.25f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 7] - 0.25f) < 0.01f &&
+							fabs(allVertices[baseIndex + 9] - (-0.25f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 10] - 0.75f) < 0.01f &&
+							fabs(allVertices[baseIndex + 12] - (-0.75f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 13] - 0.75f) < 0.01f &&
+							fabs(allVertices[baseIndex + 15] - (-0.75f)) < 0.01f &&
+							fabs(allVertices[baseIndex + 16] - 0.25f) < 0.01f) {
+							allVertices[baseIndex] = -0.75f;
+							allVertices[baseIndex + 1] = 0.75f;
+							allVertices[baseIndex + 3] = -0.75f;
+							allVertices[baseIndex + 4] = 0.25f;
+							allVertices[baseIndex + 6] = -0.25f;
+							allVertices[baseIndex + 7] = 0.25f;
+							allVertices[baseIndex + 9] = -0.25f;
+							allVertices[baseIndex + 10] = 0.75f;
+							allVertices[baseIndex + 11] = -0.75f;
+							allVertices[baseIndex + 12] = 0.75f;
+							allVertices[baseIndex + 14] = -0.75f;
+							allVertices[baseIndex + 15] = 0.25f;
+							shapes[i].shapeType = 4;
+							shapes[i].isTransforming = false;
+						}
+					}
+					break;
+				} 
+			}
+			else if (command == 3 && shapes[i].shapeType == 3) {
+				shapes[i].drawMode = GL_TRIANGLES;
+				shapes[i].vertexCount = 6;
+
+				// 첫 번째 점: (-0.25, 0.75) -> (-0.5, 0.8)
+				if (allVertices[baseIndex] > -0.5f) {
+					allVertices[baseIndex] -= 0.01f;
+				}
+				if (allVertices[baseIndex + 1] < 0.8f) {
+					allVertices[baseIndex + 1] += 0.01f;
+				}
+
+				// 두 번째 점: (-0.75, 0.25) -> (-0.65, 0.35)
+				if (allVertices[baseIndex + 3] < -0.65f) {
+					allVertices[baseIndex + 3] += 0.01f;
+				}
+				if (allVertices[baseIndex + 4] < 0.35f) {
+					allVertices[baseIndex + 4] += 0.01f;
+				}
+
+				// 세 번째 점: (-0.75, 0.25) -> (-0.35, 0.35)
+				if (allVertices[baseIndex + 6] < -0.35f) {
+					allVertices[baseIndex + 6] += 0.01f;
+				}
+				if (allVertices[baseIndex + 7] < 0.35f) {
+					allVertices[baseIndex + 7] += 0.01f;
+				}
+
+				// 목표 지점에 도달했는지 확인
+				if (fabs(allVertices[baseIndex] - (-0.5f)) < 0.01f &&
+					fabs(allVertices[baseIndex + 1] - 0.8f) < 0.01f &&
+					fabs(allVertices[baseIndex + 3] - (-0.65f)) < 0.01f &&
+					fabs(allVertices[baseIndex + 4] - 0.35f) < 0.01f &&
+					fabs(allVertices[baseIndex + 6] - (-0.35f)) < 0.01f &&
+					fabs(allVertices[baseIndex + 7] - 0.35f) < 0.01f) {
+					shapes[i].shapeType = 3;
+					shapes[i].isTransforming = false;
+				}
+			}
+		}
+	}
+
+	if (anyAnimating)	UpdateBuffer();
+	glutPostRedisplay();
+	glutTimerFunc(16, Timer, 1); // 다음 프레임을 위한 타이머 설정
 }
 
 void changeShapes() {
 	for (int i = shapes.size() - 1; i >= 0; --i) {
 		// 선 -> 삼각형
 		if (command == 2 && shapes[i].shapeType == 2) {
-			Shape newShape1;
-			newShape1.startIndex = allVertices.size() / 3;
-			newShape1.centerX = shapes[i].centerX;
-			newShape1.centerY = shapes[i].centerY;
-			float x = newShape1.centerX;
-			float y = newShape1.centerY;
-
-			allVertices.push_back(x);
-			allVertices.push_back(y + 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.15f);
-			allVertices.push_back(y - 0.15f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x + 0.15f);
-			allVertices.push_back(y - 0.15f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			newShape1.drawMode = GL_TRIANGLES;
-			newShape1.vertexCount = 3;
-			newShape1.shapeType = 3; // 삼각형 타입
-
-			shapes.push_back(newShape1);
-			shapes.erase(shapes.begin() + i);
+			shapes[i].isTransforming = true;
+			isAnimating = true;
 		}
 		// 삼각형 -> 사각형
 		else if (command == 3 && shapes[i].shapeType == 3) {
-			Shape newShape3;
-			newShape3.startIndex = allVertices.size() / 3;
-			newShape3.centerX = shapes[i].centerX;
-			newShape3.centerY = shapes[i].centerY;
-			float x = newShape3.centerX;
-			float y = newShape3.centerY;
-
-			allVertices.push_back(x + 0.25f);
-			allVertices.push_back(y + 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.25f);
-			allVertices.push_back(y - 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.25f);
-			allVertices.push_back(y + 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-
-			allVertices.push_back(x + 0.25f);
-			allVertices.push_back(y + 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.25f);
-			allVertices.push_back(y - 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x + 0.25f);
-			allVertices.push_back(y - 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-
-			newShape3.drawMode = GL_TRIANGLES;
-			newShape3.vertexCount = 6;
-			newShape3.shapeType = 4;
-			shapes.push_back(newShape3);
-			shapes.erase(shapes.begin() + i);
+			shapes[i].isTransforming = true;
+			isAnimating = true;
 		}
 		// 사각형 -> 오각형
 		else if (command == 4 && shapes[i].shapeType == 4) {
-			Shape newShape4;
-			newShape4.startIndex = allVertices.size() / 3;
-			newShape4.centerX = shapes[i].centerX;
-			newShape4.centerY = shapes[i].centerY;
-			float x = newShape4.centerX;
-			float y = newShape4.centerY;
-
-			// 중앙 삼각형
-			allVertices.push_back(x);
-			allVertices.push_back(y + 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.15f);
-			allVertices.push_back(y - 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x + 0.15f);
-			allVertices.push_back(y - 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-
-			// 왼쪽 삼각형
-			allVertices.push_back(x - 0.3f);
-			allVertices.push_back(y + 0.05f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x);
-			allVertices.push_back(y + 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.15f);
-			allVertices.push_back(y - 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-
-			// 오른쪽 삼각형
-			allVertices.push_back(x + 0.3f);
-			allVertices.push_back(y + 0.05f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x);
-			allVertices.push_back(y + 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x + 0.15f);
-			allVertices.push_back(y - 0.3f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-
-			newShape4.drawMode = GL_TRIANGLES;
-			newShape4.vertexCount = 9;
-			newShape4.shapeType = 5; // 삼각형 타입
-
-			shapes.push_back(newShape4);
-			shapes.erase(shapes.begin() + i);
+			shapes[i].isTransforming = true;
+			isAnimating = true;
 		}
 		// 오각형 -> 선
 		else if (command == 5 && shapes[i].shapeType == 5) {
-			Shape newShape2;
-			newShape2.startIndex = allVertices.size() / 3;
-			newShape2.centerX = shapes[i].centerX;
-			newShape2.centerY = shapes[i].centerY;
-			float x = newShape2.centerX;
-			float y = newShape2.centerY;
-
-			allVertices.push_back(x + 0.25f);
-			allVertices.push_back(y + 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allVertices.push_back(x - 0.25f);
-			allVertices.push_back(y - 0.25f);
-			allVertices.push_back(0.0f);
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			allColors.push_back(dis_color(gen));
-			newShape2.drawMode = GL_LINES;
-			newShape2.vertexCount = 2;
-			newShape2.shapeType = 2;
-
-			shapes.push_back(newShape2);
-			shapes.erase(shapes.begin() + i);
+			shapes[i].isTransforming = true;
+			isAnimating = true;
 		}
 	}
-	
+
 	UpdateBuffer();
 }
 
@@ -669,6 +729,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
 	InitShapes();
+	glutTimerFunc(16, Timer, 1); // 타이머 시작
 	glutKeyboardFunc(Keyboard); //--- 키보드 입력 콜백함수 지정
 	glutMainLoop(); // 이벤트 처리 시작
 }

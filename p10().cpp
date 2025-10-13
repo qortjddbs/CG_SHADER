@@ -930,7 +930,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(800, 600);
-	glutCreateWindow("Practice 10 - Complete Triangle System");
+	glutCreateWindow("Practice 10");
 	//--- GLEW 초기화하기
 	glewExperimental = GL_TRUE;
 	glewInit();
