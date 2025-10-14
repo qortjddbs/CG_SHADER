@@ -18,10 +18,10 @@
     <ClCompile Include="삼각형 띄우기.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="p8%28o%29.cpp">
+    <ClCompile Include="p8%283%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="p9%28o%29.cpp">
+    <ClCompile Include="p9%283%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="p10%28%29.cpp">
@@ -33,7 +33,10 @@
     <ClCompile Include="p12%28%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="p13.cpp">
+    <ClCompile Include="p13%28%29.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="p14%28%29.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

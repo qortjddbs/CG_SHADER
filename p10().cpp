@@ -25,44 +25,34 @@ GLuint fragmentShader; //--- 프래그먼트 세이더 객체
 std::random_device rd;  // 시드값을 얻기 위한 random_device 생성.
 std::mt19937 gen(rd());	// random_device 를 통해 난수 생성 엔진을 초기화 한다.
 std::uniform_real_distribution<float> dis_color(0.0f, 1.0f); // 0.0f 부터 1.0f 까지 균등하게 나타나는 난수열을 생성하기 위해 균등 분포 정의.
-std::uniform_real_distribution<float> dis_x(0.1f, 0.9f);
-std::uniform_real_distribution<float> dis_y(0.1f, 0.7f);
-std::uniform_real_distribution<float> dis_size(0.05f, 0.15f);
+std::uniform_real_distribution<float> dis_x(-0.9f, 0.9f);
+std::uniform_real_distribution<float> dis_y(-0.9f, 0.7f);
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-int shapeType = 0;
-int selectedShapeIndex = -1;
-int triangleMode = 0; // 0: 면(GL_TRIANGLES), 1: 선(GL_LINE_LOOP)
-
 struct Shape {
-	GLenum drawMode;
 	int startIndex;
 	int vertexCount;
 	float centerX, centerY;
-	int shapeType;
 };
 
 std::vector<GLfloat> allVertices;
 std::vector<GLfloat> allColors;
 std::vector<Shape> shapes;
 GLuint vao, vbo[2];
-
-// 이동 관련 변수들
 bool num1, num2, num3, num4 = false;
+float bigDirX = 0.05f, bigDirY = 0.05f;
+float smallDirX = 0.03f, smallDirY = 0.03f;
 bool timerRunning = false;
-
-// 대각선/지그재그 이동용 변수들
-std::vector<float> triangleDirX, triangleDirY;
-
-// 원 스파이럴 이동용 변수들
-std::vector<float> spiralAngle, spiralRadius;
-std::vector<float> triangleCenterX, triangleCenterY;
-
-// 사각 스파이럴 이동용 변수들
-std::vector<int> triangleSpiralDirection, triangleStepsInDirection, triangleStepsToMove;
-std::vector<float> triangleStepSize;
+float bigAngle = 0.0f, smallAngle = 0.0f;
+float bigRadius = 0.1f, smallRadius = 0.05f;
+float bigCenterX = 0.0f, bigCenterY = 0.0f;
+float smallCenterX = 0.0f, smallCenterY = 0.0f;
+int bigSpiralDirection = 0, smallSpiralDirection = 0;		// 0 : 왼쪽, 1 : 아래, 2 : 오른쪽, 3 : 위
+int bigStepsInDirection = 0, smallStepsInDirection = 0;	// 현재 방향으로 이동한 스텝 수
+int bigStepsToMove = 1, smallStepsToMove = 1;		// 현재 방향으로 이동해야 할 총 스텝 수
+float bigStepSize = 0.02f, smallStepSize = 0.015f;	// 한 스텝당 이동거리
 
 float mapToGLCoordX(int x) {
 	return (static_cast<float>(x) / (WINDOW_WIDTH / 2)) - 1.0f;
@@ -88,91 +78,14 @@ void UpdateBuffer() {
 	glEnableVertexAttribArray(1);
 }
 
-void InitMovementData() {
-	// 삼각형만 이동시키므로 삼각형 개수만큼 벡터 초기화
-	int triangleCount = 0;
-	for (const auto& shape : shapes) {
-		if (shape.shapeType == 2) { // 삼각형만
-			triangleCount++;
-		}
-	}
-	
-	triangleDirX.resize(triangleCount);
-	triangleDirY.resize(triangleCount);
-	spiralAngle.resize(triangleCount);
-	spiralRadius.resize(triangleCount);
-	triangleCenterX.resize(triangleCount);
-	triangleCenterY.resize(triangleCount);
-	triangleSpiralDirection.resize(triangleCount);
-	triangleStepsInDirection.resize(triangleCount);
-	triangleStepsToMove.resize(triangleCount);
-	triangleStepSize.resize(triangleCount);
-	
-	// 초기값 설정
-	for (int i = 0; i < triangleCount; i++) {
-		triangleDirX[i] = (i % 2 == 0) ? 0.02f : 0.015f;
-		triangleDirY[i] = (i % 2 == 0) ? 0.02f : 0.015f;
-		spiralAngle[i] = 0.0f;
-		spiralRadius[i] = (i % 2 == 0) ? 0.1f : 0.08f;
-		triangleSpiralDirection[i] = 0;
-		triangleStepsInDirection[i] = 0;
-		triangleStepsToMove[i] = 1;
-		triangleStepSize[i] = (i % 2 == 0) ? 0.02f : 0.015f;
-	}
-}
-
-void InitShapes() {
-	// X축 그리기
-	Shape LineX;
-	LineX.startIndex = allVertices.size() / 3;
-	allVertices.push_back(-1.0f);
-	allVertices.push_back(0.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(1.0f);
-	allVertices.push_back(0.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	LineX.drawMode = GL_LINES;
-	LineX.vertexCount = 2;
-	LineX.centerX = 0.0f;
-	LineX.centerY = 0.0f;
-	LineX.shapeType = 1; // 선 타입
-	shapes.push_back(LineX);
-
-	// Y축 그리기
-	Shape LineY;
-	LineY.startIndex = allVertices.size() / 3;
-	allVertices.push_back(0.0f);
-	allVertices.push_back(1.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.0f);
-	allVertices.push_back(-1.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	LineY.drawMode = GL_LINES;
-	LineY.vertexCount = 2;
-	LineY.centerX = 0.0f;
-	LineY.centerY = 0.0f;
-	LineY.shapeType = 1; // 선 타입
-	shapes.push_back(LineY);
-
-	// 1사분면 삼각형
-	Shape triangle1;
-	triangle1.startIndex = allVertices.size() / 3;
-	triangle1.centerX = dis_x(gen);
-	triangle1.centerY = dis_y(gen);
-	float x = triangle1.centerX;
-	float y = triangle1.centerY;
+void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
+	Shape bigTriangle;
+	bigTriangle.startIndex = allVertices.size() / 3;
+	bigTriangle.vertexCount = 3;
+	bigTriangle.centerX = dis_x(gen);
+	bigTriangle.centerY = dis_y(gen);
+	float x = bigTriangle.centerX;
+	float y = bigTriangle.centerY;
 
 	allVertices.push_back(x);
 	allVertices.push_back(y + 0.3f);
@@ -192,345 +105,38 @@ void InitShapes() {
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	triangle1.drawMode = GL_TRIANGLES;
-	triangle1.vertexCount = 3;
-	triangle1.shapeType = 2; // 삼각형 타입
-	shapes.push_back(triangle1);
 
-	// 2사분면 삼각형
-	Shape triangle2;
-	triangle2.startIndex = allVertices.size() / 3;
-	triangle2.centerX = -dis_x(gen);
-	triangle2.centerY = dis_y(gen);
-	x = triangle2.centerX;
-	y = triangle2.centerY;
+	shapes.push_back(bigTriangle);
+
+	Shape smallTriangle;
+	smallTriangle.startIndex = allVertices.size() / 3;
+	smallTriangle.vertexCount = 3;
+	smallTriangle.centerX = dis_x(gen);
+	smallTriangle.centerY = dis_y(gen);
+	x = smallTriangle.centerX;
+	y = smallTriangle.centerY;
 
 	allVertices.push_back(x);
-	allVertices.push_back(y + 0.3f);
+	allVertices.push_back(y + 0.15f);
 	allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x - 0.1f);
-	allVertices.push_back(y - 0.1f);
+	allVertices.push_back(x - 0.05f);
+	allVertices.push_back(y - 0.05f);
 	allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x + 0.1f);
-	allVertices.push_back(y - 0.1f);
+	allVertices.push_back(x + 0.05f);
+	allVertices.push_back(y - 0.05f);
 	allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
 	allColors.push_back(dis_color(gen));
-	triangle2.drawMode = GL_TRIANGLES;
-	triangle2.vertexCount = 3;
-	triangle2.shapeType = 2; // 삼각형 타입
-	shapes.push_back(triangle2);
 
-	// 3사분면 삼각형
-	Shape triangle3;
-	triangle3.startIndex = allVertices.size() / 3;
-	triangle3.centerX = -dis_x(gen);
-	triangle3.centerY = -dis_y(gen);
-	x = triangle3.centerX;
-	y = triangle3.centerY;
-
-	allVertices.push_back(x);
-	allVertices.push_back(y + 0.3f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x - 0.1f);
-	allVertices.push_back(y - 0.1f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x + 0.1f);
-	allVertices.push_back(y - 0.1f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	triangle3.drawMode = GL_TRIANGLES;
-	triangle3.vertexCount = 3;
-	triangle3.shapeType = 2; // 삼각형 타입
-	shapes.push_back(triangle3);
-
-	// 4사분면 삼각형
-	Shape triangle4;
-	triangle4.startIndex = allVertices.size() / 3;
-	triangle4.centerX = dis_x(gen);
-	triangle4.centerY = -dis_y(gen);
-	x = triangle4.centerX;
-	y = triangle4.centerY;
-
-	allVertices.push_back(x);
-	allVertices.push_back(y + 0.3f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x - 0.1f);
-	allVertices.push_back(y - 0.1f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x + 0.1f);
-	allVertices.push_back(y - 0.1f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	triangle4.drawMode = GL_TRIANGLES;
-	triangle4.vertexCount = 3;
-	triangle4.shapeType = 2; // 삼각형 타입
-	shapes.push_back(triangle4);
-
+	shapes.push_back(smallTriangle);
 	UpdateBuffer();
-	InitMovementData();
-}
-
-void AddShape(float x, float y, int shapeType) {
-	Shape newShape;
-	newShape.startIndex = allVertices.size() / 3;
-	
-	// 랜덤 크기 생성 (이등변삼각형용)
-	float size = dis_size(gen);
-	float height = size * 1.5f; // 높이는 밑변보다 크게
-
-	allVertices.push_back(x);
-	allVertices.push_back(y + height);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x - size + 0.01f);
-	allVertices.push_back(y - height * 1.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allVertices.push_back(x + size - 0.01f);
-	allVertices.push_back(y - height * 1.0f);
-	allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	allColors.push_back(dis_color(gen));
-	
-	// 삼각형 그리기 모드에 따라 drawMode 설정
-	if (triangleMode == 0) {
-		newShape.drawMode = GL_TRIANGLES;  // 면
-	} else {
-		newShape.drawMode = GL_LINE_LOOP;  // 선
-	}
-
-	newShape.vertexCount = 3;
-	newShape.centerX = x;
-	newShape.centerY = y;
-	newShape.shapeType = 2; // 삼각형 타입 설정
-
-	shapes.push_back(newShape);
-	UpdateBuffer();
-	InitMovementData(); // 새 삼각형 추가 시 이동 데이터 다시 초기화
-}
-
-int CountTrianglesInQuadrant(int quadrant) {
-    int count = 0;
-    for (const auto& shape : shapes) {
-        if (shape.drawMode == GL_TRIANGLES && 
-            (&shape - &shapes[0]) >= 2) {
-            
-            float x = shape.centerX;
-            float y = shape.centerY;
-            
-            switch (quadrant) {
-            case 1:
-                if (x > 0 && y > 0) count++;
-                break;
-            case 2:
-                if (x < 0 && y > 0) count++;
-                break;
-            case 3:
-                if (x < 0 && y < 0) count++;
-                break;
-            case 4:
-                if (x > 0 && y < 0) count++;
-                break;
-            }
-        } else if (shape.drawMode == GL_LINE_LOOP &&
-			(&shape - &shapes[0]) >= 2) {
-
-			float x = shape.centerX;
-			float y = shape.centerY;
-
-			switch (quadrant) {
-			case 1:
-				if (x > 0 && y > 0) count++;
-				break;
-			case 2:
-				if (x < 0 && y > 0) count++;
-				break;
-			case 3:
-				if (x < 0 && y < 0) count++;
-				break;
-			case 4:
-				if (x > 0 && y < 0) count++;
-				break;
-			}
-		}
-    }
-    return count;
-}
-
-void RemoveInitTriangleInQuadrant(int quadrant) {
-    // 새로운 벡터들을 만들어서 안전하게 재구성
-    std::vector<GLfloat> newVertices;
-    std::vector<GLfloat> newColors;
-    std::vector<Shape> newShapes;
-    
-    // 축(선) 유지 - 인덱스 0, 1
-    for (int i = 0; i < std::min(2, (int)shapes.size()); i++) {
-        Shape newShape = shapes[i];
-        newShape.startIndex = newVertices.size() / 3;
-        
-        int startVertex = shapes[i].startIndex * 3;
-        int vertexCount = shapes[i].vertexCount * 3;
-        
-        for (int j = 0; j < vertexCount; j++) {
-            newVertices.push_back(allVertices[startVertex + j]);
-            newColors.push_back(allColors[startVertex + j]);
-        }
-        
-        newShapes.push_back(newShape);
-    }
-    
-    // 나머지 삼각형들 중에서 해당 사분면이 아닌 것들만 유지
-    for (int i = 2; i < shapes.size(); i++) {
-        if (shapes[i].drawMode == GL_TRIANGLES || shapes[i].drawMode == GL_LINE_LOOP) {
-            float x = shapes[i].centerX;
-            float y = shapes[i].centerY;
-            
-            bool shouldKeep = true;
-            switch (quadrant) {				
-            case 1:
-                if (x > 0 && y > 0) shouldKeep = false;
-                break;
-            case 2:
-                if (x < 0 && y > 0) shouldKeep = false;
-                break;
-            case 3:
-                if (x < 0 && y < 0) shouldKeep = false;
-                break;
-            case 4:
-                if (x > 0 && y < 0) shouldKeep = false;
-                break;
-            }
-            
-            if (shouldKeep) {
-                Shape newShape = shapes[i];
-                newShape.startIndex = newVertices.size() / 3;
-                
-                int startVertex = shapes[i].startIndex * 3;
-                int vertexCount = shapes[i].vertexCount * 3;
-                
-                for (int j = 0; j < vertexCount; j++) {
-                    newVertices.push_back(allVertices[startVertex + j]);
-                    newColors.push_back(allColors[startVertex + j]);
-                }
-                
-                newShapes.push_back(newShape);
-            }
-        }
-    }
-    
-    // 새로운 데이터로 교체
-    allVertices = newVertices;
-    allColors = newColors;
-    shapes = newShapes;
-    
-    UpdateBuffer();
-    InitMovementData(); // 삼각형 제거 후 이동 데이터 다시 초기화
-}
-
-void RemoveFirstTriangleInQuadrant(int quadrant) {
-	// 새로운 벡터들을 만들어서 안전하게 재구성
-	std::vector<GLfloat> newVertices;
-	std::vector<GLfloat> newColors;
-	std::vector<Shape> newShapes;
-
-	// 축(선) 유지 - 인덱스 0, 1
-	for (int i = 0; i < std::min(2, (int)shapes.size()); i++) {
-		Shape newShape = shapes[i];
-		newShape.startIndex = newVertices.size() / 3;
-
-		int startVertex = shapes[i].startIndex * 3;
-		int vertexCount = shapes[i].vertexCount * 3;
-
-		for (int j = 0; j < vertexCount; j++) {
-			newVertices.push_back(allVertices[startVertex + j]);
-			newColors.push_back(allColors[startVertex + j]);
-		}
-
-		newShapes.push_back(newShape);
-	}
-
-	bool firstInQuadrantRemoved = false;
-
-	// 나머지 삼각형들을 처리
-	for (int i = 2; i < shapes.size(); i++) {
-		if (shapes[i].drawMode == GL_TRIANGLES || shapes[i].drawMode == GL_LINE_LOOP) {
-			float x = shapes[i].centerX;
-			float y = shapes[i].centerY;
-
-			bool isInTargetQuadrant = false;
-			switch (quadrant) {
-			case 1:
-				if (x > 0 && y > 0) isInTargetQuadrant = true;
-				break;
-			case 2:
-				if (x < 0 && y > 0) isInTargetQuadrant = true;
-				break;
-			case 3:
-				if (x < 0 && y < 0) isInTargetQuadrant = true;
-				break;
-			case 4:
-				if (x > 0 && y < 0) isInTargetQuadrant = true;
-				break;
-			}
-
-			// 해당 사분면의 첫 번째 삼각형은 제거, 나머지는 유지
-			if (isInTargetQuadrant && !firstInQuadrantRemoved) {
-				firstInQuadrantRemoved = true;
-				continue; // 첫 번째 삼각형 제거
-			}
-
-			// 나머지 삼각형들은 유지
-			Shape newShape = shapes[i];
-			newShape.startIndex = newVertices.size() / 3;
-
-			int startVertex = shapes[i].startIndex * 3;
-			int vertexCount = shapes[i].vertexCount * 3;
-
-			for (int j = 0; j < vertexCount; j++) {
-				newVertices.push_back(allVertices[startVertex + j]);
-				newColors.push_back(allColors[startVertex + j]);
-			}
-
-			newShapes.push_back(newShape);
-		}
-	}
-
-	// 새로운 데이터로 교체
-	allVertices = newVertices;
-	allColors = newColors;
-	shapes = newShapes;
-
-	UpdateBuffer();
-	InitMovementData(); // 삼각형 제거 후 이동 데이터 다시 초기화
 }
 
 char* filetobuf(const char* file)
@@ -557,6 +163,7 @@ GLvoid drawScene()
 	//--- 변경된 배경색 설정
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//--- 렌더링 파이프라인에 세이더 불러오기
 
 	if (allVertices.empty()) {
 		glutSwapBuffers();
@@ -573,7 +180,7 @@ GLvoid drawScene()
 
 	// 각 도형별로 그리기
 	for (const auto& shape : shapes) {
-		glDrawArrays(shape.drawMode, shape.startIndex, shape.vertexCount);
+		glDrawArrays(GL_TRIANGLES, shape.startIndex, shape.vertexCount);
 	}
 
 	glutSwapBuffers(); //--- 화면에 출력하기
@@ -582,26 +189,12 @@ GLvoid drawScene()
 GLvoid Keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
-	case 'a':
-		triangleMode = 0; // 면
-		break;
-	case 'b':
-		triangleMode = 1; // 선
-		break;
-	case 'c':
-		allVertices.clear();
-		allColors.clear();
-		shapes.clear();
-		selectedShapeIndex = -1;
-		// 타이머 정지
-		num1 = num2 = num3 = num4 = false;
-		timerRunning = false;
-		InitShapes();
-		break;
 	case '1':		// 대각선 이동
 		num1 = !num1;
 		if (num1) {
 			num2 = num3 = num4 = false;
+			bigDirX = 0.02f; bigDirY = 0.02f;
+			smallDirX = 0.01f; smallDirY = 0.01f;
 
 			if (!timerRunning) {
 				timerRunning = true;
@@ -609,10 +202,12 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 			}
 		}
 		break;
-	case '2':		// 지그재그 이동
+	case '2':
 		num2 = !num2;
 		if (num2) {
 			num1 = num3 = num4 = false;
+			bigDirX = 0.02f; bigDirY = 0.2f;
+			smallDirX = 0.01f; smallDirY = 0.2f;
 
 			if (!timerRunning) {
 				timerRunning = true;
@@ -620,23 +215,21 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 			}
 		}
 		break;
-	case '3':		// 사각 스파이럴 이동
+	case '3':
 		num3 = !num3;
 		if (num3) {
 			num1 = num2 = num4 = false;
-			
-			// 사각 스파이럴 초기화
-			int triangleIndex = 0;
-			for (int i = 0; i < shapes.size(); i++) {
-				if (shapes[i].shapeType == 2) { // 삼각형만
-					triangleSpiralDirection[triangleIndex] = 0;
-					triangleStepsInDirection[triangleIndex] = 0;
-					triangleStepsToMove[triangleIndex] = 1;
-					triangleCenterX[triangleIndex] = shapes[i].centerX;
-					triangleCenterY[triangleIndex] = shapes[i].centerY;
-					triangleIndex++;
-				}
-			}
+
+			bigSpiralDirection = 0;
+			smallSpiralDirection = 0;
+			bigStepsInDirection = 0;
+			smallStepsInDirection = 0;
+			bigStepsToMove = 1;
+			smallStepsToMove = 1;
+			bigCenterX = shapes[0].centerX;
+			bigCenterY = shapes[0].centerY;
+			smallCenterX = shapes[1].centerX;
+			smallCenterY = shapes[1].centerY;
 
 			if (!timerRunning) {
 				timerRunning = true;
@@ -644,22 +237,19 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 			}
 		}
 		break;
-	case '4':		// 원 스파이럴 이동
+	case '4':
 		num4 = !num4;
 		if (num4) {
 			num1 = num2 = num3 = false;
-			
-			// 원 스파이럴 초기화
-			int triangleIndex = 0;
-			for (int i = 0; i < shapes.size(); i++) {
-				if (shapes[i].shapeType == 2) { // 삼각형만
-					spiralAngle[triangleIndex] = 0.0f;
-					spiralRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
-					triangleCenterX[triangleIndex] = shapes[i].centerX;
-					triangleCenterY[triangleIndex] = shapes[i].centerY;
-					triangleIndex++;
-				}
-			}
+
+			bigAngle = 0.0f;
+			smallAngle = 0.0f;
+			bigRadius = 0.1f;
+			smallRadius = 0.05f;
+			bigCenterX = shapes[0].centerX;
+			bigCenterY = shapes[0].centerY;
+			smallCenterX = shapes[1].centerX;
+			smallCenterY = shapes[1].centerY;
 
 			if (!timerRunning) {
 				timerRunning = true;
@@ -671,48 +261,7 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		exit(0);
 		break;
 	}
-	glutPostRedisplay();
-}
-
-GLvoid Mouse(int button, int state, int x, int y)
-{
-	float Mouse_x = mapToGLCoordX(x);
-	float Mouse_y = mapToGLCoordY(y);
-	
-	if (state == GLUT_DOWN) {
-		int quadrant = 0;
-		
-		// 사분면 결정
-		if (Mouse_x > 0 && Mouse_y > 0) {
-			quadrant = 1; // 1사분면
-		} else if (Mouse_x < 0 && Mouse_y > 0) {
-			quadrant = 2; // 2사분면
-		} else if (Mouse_x < 0 && Mouse_y < 0) {
-			quadrant = 3; // 3사분면
-		} else if (Mouse_x > 0 && Mouse_y < 0) {
-			quadrant = 4; // 4사분면
-		}
-		
-		if (quadrant > 0) { // 축이 아닌 사분면에 클릭한 경우
-			if (button == GLUT_LEFT_BUTTON) {
-				// 왼쪽 클릭: 해당 사분면의 기존 삼각형들 제거 후 새 삼각형 생성
-				RemoveInitTriangleInQuadrant(quadrant);
-				AddShape(Mouse_x, Mouse_y, shapeType);
-			}
-			else if (button == GLUT_RIGHT_BUTTON) {
-				// 오른쪽 클릭: 해당 사분면에 최대 4개까지 삼각형 추가
-				if (CountTrianglesInQuadrant(quadrant) < 4) {
-					AddShape(Mouse_x, Mouse_y, shapeType);
-				}
-				else if (CountTrianglesInQuadrant(quadrant) >= 4) {
-					RemoveFirstTriangleInQuadrant(quadrant);
-					AddShape(Mouse_x, Mouse_y, shapeType);
-				}
-			}
-		}
-	}
-
-	glutPostRedisplay();
+	glutPostRedisplay(); //--- 배경색이 바뀔 때마다 출력 콜백 함수를 호출하여 화면을 refresh 한다
 }
 
 GLvoid TimerFunction(int value) {
@@ -721,132 +270,205 @@ GLvoid TimerFunction(int value) {
 		return;
 	}
 
-	int triangleIndex = 0;
-	
-	for (int i = 0; i < shapes.size(); i++) {
-		if (shapes[i].shapeType != 2) continue; // 삼각형이 아니면 스킵
-		
-		Shape& triangle = shapes[i];
-		
-		if (num1) {		// 대각선 이동
-			// 경계 체크
-			if (triangle.centerX + 0.1f >= 1.0f || triangle.centerX - 0.1f <= -1.0f) {
-				triangleDirX[triangleIndex] *= -1;
-			}
-			if (triangle.centerY + 0.3f >= 1.0f || triangle.centerY - 0.1f <= -1.0f) {
-				triangleDirY[triangleIndex] *= -1;
-			}
+	Shape& big = shapes[0];
+	Shape& small = shapes[1];
 
-			// 모든 정점 이동
-			for (int j = 0; j < 3; ++j) {
-				allVertices[(triangle.startIndex + j) * 3] += triangleDirX[triangleIndex];
-				allVertices[(triangle.startIndex + j) * 3 + 1] += triangleDirY[triangleIndex];
-			}
-
-			triangle.centerX += triangleDirX[triangleIndex];
-			triangle.centerY += triangleDirY[triangleIndex];
+	if (num1) {		// 대각선 이동
+		if (big.centerX + 0.1f >= 1.0f || big.centerX - 0.1f <= -1.0f) {
+			bigDirX *= -1;
 		}
-		else if (num2) {		// 지그재그 이동
-			// 좌우 경계에 닿으면 방향 바꾸고 세로로 이동
-			if (triangle.centerX + 0.1f >= 1.0f || triangle.centerX - 0.1f <= -1.0f) {
-				triangleDirX[triangleIndex] *= -1;
-				for (int j = 0; j < 3; ++j) {
-					allVertices[(triangle.startIndex + j) * 3 + 1] += triangleDirY[triangleIndex];
-				}
-				triangle.centerY += triangleDirY[triangleIndex];
-			}
-			if (triangle.centerY + 0.5f >= 1.0f || triangle.centerY - 0.2f <= -1.0f) {
-				triangleDirY[triangleIndex] *= -1;
-			}
-
-			// x 값 변경
-			for (int j = 0; j < 3; ++j) {
-				allVertices[(triangle.startIndex + j) * 3] += triangleDirX[triangleIndex];
-			}
-
-			triangle.centerX += triangleDirX[triangleIndex];
+		if (big.centerY + 0.3f >= 1.0f || big.centerY - 0.1f <= -1.0f) {
+			bigDirY *= -1;
 		}
-		else if (num3) {		// 사각 스파이럴 이동
-			float deltaX = 0.0f, deltaY = 0.0f;
-			switch (triangleSpiralDirection[triangleIndex]) {
-			case 0: deltaX = triangleStepSize[triangleIndex]; break;   // 오른쪽
-			case 1: deltaY = -triangleStepSize[triangleIndex]; break;  // 아래
-			case 2: deltaX = -triangleStepSize[triangleIndex]; break;  // 왼쪽
-			case 3: deltaY = triangleStepSize[triangleIndex]; break;   // 위
-			}
 
-			// 모든 정점 이동
-			for (int j = 0; j < 3; ++j) {
-				allVertices[(triangle.startIndex + j) * 3] += deltaX;
-				allVertices[(triangle.startIndex + j) * 3 + 1] += deltaY;
-			}
-
-			triangle.centerX += deltaX;
-			triangle.centerY += deltaY;
-
-			// 방향 관리
-			triangleStepsInDirection[triangleIndex]++;
-			if (triangleStepsInDirection[triangleIndex] >= triangleStepsToMove[triangleIndex]) {
-				triangleStepsInDirection[triangleIndex] = 0;
-				triangleSpiralDirection[triangleIndex] = (triangleSpiralDirection[triangleIndex] + 1) % 4;
-				
-				// 오른쪽이나 왼쪽 방향이 끝나면 이동 거리 증가
-				if (triangleSpiralDirection[triangleIndex] == 2 || triangleSpiralDirection[triangleIndex] == 0) {
-					triangleStepsToMove[triangleIndex]++;
-				}
-			}
-
-			// 화면 경계를 벗어나면 리셋
-			if (abs(triangle.centerX - triangleCenterX[triangleIndex]) > 0.8f || 
-				abs(triangle.centerY - triangleCenterY[triangleIndex]) > 0.8f) {
-				triangleSpiralDirection[triangleIndex] = 0;
-				triangleStepsInDirection[triangleIndex] = 0;
-				triangleStepsToMove[triangleIndex] = 1;
-				triangle.centerX = triangleCenterX[triangleIndex];
-				triangle.centerY = triangleCenterY[triangleIndex];
-				
-				// 정점들도 중심으로 리셋
-				allVertices[triangle.startIndex * 3] = triangleCenterX[triangleIndex];
-				allVertices[triangle.startIndex * 3 + 1] = triangleCenterY[triangleIndex] + 0.3f;
-				allVertices[(triangle.startIndex + 1) * 3] = triangleCenterX[triangleIndex] - 0.1f;
-				allVertices[(triangle.startIndex + 1) * 3 + 1] = triangleCenterY[triangleIndex] - 0.1f;
-				allVertices[(triangle.startIndex + 2) * 3] = triangleCenterX[triangleIndex] + 0.1f;
-				allVertices[(triangle.startIndex + 2) * 3 + 1] = triangleCenterY[triangleIndex] - 0.1f;
-			}
+		if (small.centerX + 0.05f >= 1.0f || small.centerX - 0.05f <= -1.0f) {
+			smallDirX *= -1;
 		}
-		else if (num4) {		// 원 스파이럴 이동
-			// 각도 증가 (각 삼각형마다 다른 속도)
-			spiralAngle[triangleIndex] += (triangleIndex % 2 == 0) ? 0.1f : 0.15f;
+		if (small.centerY + 0.15f >= 1.0f || small.centerY - 0.05f <= -1.0f) {
+			smallDirY *= -1;
+		}
 
-			// 반지름 증가 (스파이럴 효과)
-			spiralRadius[triangleIndex] += (triangleIndex % 2 == 0) ? 0.002f : 0.001f;
+		// x 값 변경
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3] += bigDirX;
+			allVertices[(small.startIndex + i) * 3] += smallDirX;
+		}
 
-			// 새로운 위치 계산
-			float newCenterX = triangleCenterX[triangleIndex] + spiralRadius[triangleIndex] * cos(spiralAngle[triangleIndex]);
-			float newCenterY = triangleCenterY[triangleIndex] + spiralRadius[triangleIndex] * sin(spiralAngle[triangleIndex]);
+		// y값 변경
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3 + 1] += bigDirY;
+			allVertices[(small.startIndex + i) * 3 + 1] += smallDirY;
+		}
 
-			// 이동할 거리 계산
-			float deltaX = newCenterX - triangle.centerX;
-			float deltaY = newCenterY - triangle.centerY;
-
-			// 모든 정점을 새로운 위치로 이동
-			for (int j = 0; j < 3; ++j) {
-				allVertices[(triangle.startIndex + j) * 3] += deltaX;
-				allVertices[(triangle.startIndex + j) * 3 + 1] += deltaY;
+		big.centerX += bigDirX;
+		small.centerX += smallDirX;
+		big.centerY += bigDirY;
+		small.centerY += smallDirY;
+	}
+	else if (num2) {		// 지그재그 이동
+		if (big.centerX + 0.1f >= 1.0f || big.centerX - 0.1f <= -1.0f) {
+			bigDirX *= -1;
+			for (int i = 0; i < 3; ++i) {
+				allVertices[(big.startIndex + i) * 3 + 1] += bigDirY;
 			}
+			big.centerY += bigDirY;
+		}
+		if (big.centerY + 0.5f >= 1.0f || big.centerY - 0.2f <= -1.0f) {
+			bigDirY *= -1;
+		}
 
-			// 중심점 업데이트
-			triangle.centerX = newCenterX;
-			triangle.centerY = newCenterY;
+		if (small.centerX + 0.05f >= 1.0f || small.centerX - 0.05f <= -1.0f) {
+			smallDirX *= -1;
+			for (int i = 0; i < 3; ++i) {
+				allVertices[(small.startIndex + i) * 3 + 1] += smallDirY;
+			}
+			small.centerY += smallDirY;
+		}
+		if (small.centerY + 0.3f >= 1.0f || small.centerY - 0.2f <= -1.0f) {
+			smallDirY *= -1;
+		}
 
-			// 화면 경계를 벗어나면 리셋
-			if (spiralRadius[triangleIndex] > 0.8f) {
-				spiralRadius[triangleIndex] = (triangleIndex % 2 == 0) ? 0.1f : 0.08f;
-				spiralAngle[triangleIndex] = 0.0f;
+		// x 값 변경
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3] += bigDirX;
+			allVertices[(small.startIndex + i) * 3] += smallDirX;
+		}
+
+		big.centerX += bigDirX;
+		small.centerX += smallDirX;
+	}
+	else if (num3) {		// 사각 스파이럴 이동
+		float bigDeltaX = 0.0f, bigDeltaY = 0.0f;
+		switch (bigSpiralDirection) {
+		case 0: bigDeltaX = bigStepSize; break;	// 오른쪽
+		case 1: bigDeltaY = -bigStepSize; break;	// 아래쪽
+		case 2: bigDeltaX = -bigStepSize; break;		// 왼쪽
+		case 3: bigDeltaY = bigStepSize; break;		// 위쪽
+		}
+
+		float smallDeltaX = 0.0f, smallDeltaY = 0.0f;
+		switch (smallSpiralDirection) {
+		case 0: smallDeltaX = smallStepSize; break;	// 오른쪽
+		case 1: smallDeltaY = -smallStepSize; break;	// 아래쪽
+		case 2: smallDeltaX = -smallStepSize; break;		// 왼쪽
+		case 3: smallDeltaY = smallStepSize; break;		// 위쪽
+		}
+
+		// 모든 정점 이동
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3] += bigDeltaX;
+			allVertices[(big.startIndex + i) * 3 + 1] += bigDeltaY;
+			allVertices[(small.startIndex + i) * 3] += smallDeltaX;
+			allVertices[(small.startIndex + i) * 3 + 1] += smallDeltaY;
+		}
+
+		// 중심점 업데이트
+		big.centerX += bigDeltaX;
+		big.centerY += bigDeltaY;
+		small.centerX += smallDeltaX;
+		small.centerY += smallDeltaY;
+
+		// 큰 삼각형 방향 관리
+		bigStepsInDirection++;
+		if (bigStepsInDirection >= bigStepsToMove) {
+			bigStepsInDirection = 0;
+			bigSpiralDirection = (bigSpiralDirection + 1) % 4;
+
+			// 오른쪽이나 왼쪽 방향이 끝나면 이동 거리 증가
+			if (bigSpiralDirection == 2 || bigSpiralDirection == 0) {
+				bigStepsToMove++;
 			}
 		}
 
-		triangleIndex++;
+		// 작은 삼각형 방향 관리 (다른 속도로)
+		smallStepsInDirection++;
+		if (smallStepsInDirection >= smallStepsToMove) {
+			smallStepsInDirection = 0;
+			smallSpiralDirection = (smallSpiralDirection + 1) % 4;
+
+			// 오른쪽이나 왼쪽 방향이 끝나면 이동 거리 증가
+			if (smallSpiralDirection == 2 || smallSpiralDirection == 0) {
+				smallStepsToMove++;
+			}
+		}
+
+		// 화면 경계를 벗어나면 리셋
+		if (abs(big.centerX - bigCenterX) > 0.8f || abs(big.centerY - bigCenterY) > 0.8f) {
+			bigSpiralDirection = 0;
+			bigStepsInDirection = 0;
+			bigStepsToMove = 1;
+			big.centerX = bigCenterX;
+			big.centerY = bigCenterY;
+
+			// 정점들도 중심으로 리셋
+			allVertices[big.startIndex * 3] = bigCenterX;
+			allVertices[big.startIndex * 3 + 1] = bigCenterY + 0.3f;
+			allVertices[(big.startIndex + 1) * 3] = bigCenterX - 0.1f;
+			allVertices[(big.startIndex + 1) * 3 + 1] = bigCenterY - 0.1f;
+			allVertices[(big.startIndex + 2) * 3] = bigCenterX + 0.1f;
+			allVertices[(big.startIndex + 2) * 3 + 1] = bigCenterY - 0.1f;
+		}
+
+		if (abs(small.centerX - smallCenterX) > 0.6f || abs(small.centerY - smallCenterY) > 0.6f) {
+			smallSpiralDirection = 0;
+			smallStepsInDirection = 0;
+			smallStepsToMove = 1;
+			small.centerX = smallCenterX;
+			small.centerY = smallCenterY;
+
+			// 정점들도 중심으로 리셋
+			allVertices[small.startIndex * 3] = smallCenterX;
+			allVertices[small.startIndex * 3 + 1] = smallCenterY + 0.15f;
+			allVertices[(small.startIndex + 1) * 3] = smallCenterX - 0.05f;
+			allVertices[(small.startIndex + 1) * 3 + 1] = smallCenterY - 0.05f;
+			allVertices[(small.startIndex + 2) * 3] = smallCenterX + 0.05f;
+			allVertices[(small.startIndex + 2) * 3 + 1] = smallCenterY - 0.05f;
+		}
+	}
+	else if (num4) {		// 원 스파이럴 이동
+		// 1. 각도를 점진적으로 증가 (회전 효과)
+		bigAngle += 0.1f;     // += 사용으로 누적 증가
+		smallAngle += 0.15f;  // 작은 삼각형은 더 빠르게 회전
+
+		// 2. 반지름을 점진적으로 증가 (스파이럴 효과)
+		bigRadius += 0.002f;    // 눈에 보이는 정도로 증가
+		smallRadius += 0.001f;
+
+		// 3. 새로운 위치 계산 (극좌표 -> 직교좌표 변환)
+		float newBigCenterX = bigCenterX + bigRadius * cos(bigAngle);
+		float newBigCenterY = bigCenterY + bigRadius * sin(bigAngle);
+		float newSmallCenterX = smallCenterX + smallRadius * cos(smallAngle);
+		float newSmallCenterY = smallCenterY + smallRadius * sin(smallAngle);
+
+		// 4. 이동할 거리 계산
+		float bigDeltaX = newBigCenterX - big.centerX;
+		float bigDeltaY = newBigCenterY - big.centerY;
+		float smallDeltaX = newSmallCenterX - small.centerX;
+		float smallDeltaY = newSmallCenterY - small.centerY;
+
+		// 5. 모든 정점을 새로운 위치로 이동
+		for (int i = 0; i < 3; ++i) {
+			allVertices[(big.startIndex + i) * 3] += bigDeltaX;
+			allVertices[(big.startIndex + i) * 3 + 1] += bigDeltaY;
+			allVertices[(small.startIndex + i) * 3] += smallDeltaX;
+			allVertices[(small.startIndex + i) * 3 + 1] += smallDeltaY;
+		}
+
+		// 6. 중심점 업데이트 (올바른 할당)
+		big.centerX = newBigCenterX;
+		big.centerY = newBigCenterY;
+		small.centerX = newSmallCenterX;
+		small.centerY = newSmallCenterY;
+
+		// 7. 화면 경계를 벗어나면 리셋
+		if (bigRadius > 0.8f) {
+			bigRadius = 0.1f;
+			bigAngle = 0.0f;
+		}
+		if (smallRadius > 0.6f) {
+			smallRadius = 0.05f;
+			smallAngle = 0.0f;
+		}
 	}
 
 	UpdateBuffer();
@@ -930,7 +552,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(800, 600);
-	glutCreateWindow("Practice 10");
+	glutCreateWindow("Practice 8");
 	//--- GLEW 초기화하기
 	glewExperimental = GL_TRUE;
 	glewInit();
@@ -938,7 +560,6 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	InitBuffer();
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
-	glutMouseFunc(Mouse);
 	InitShapes();
 	glutKeyboardFunc(Keyboard); //--- 키보드 입력 콜백함수 지정
 	glutMainLoop(); // 이벤트 처리 시작
