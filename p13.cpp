@@ -15,6 +15,7 @@ void make_fragmentShaders();
 GLuint make_shaderProgram();
 GLvoid drawScene();
 GLvoid Reshape(int w, int h);
+GLvoid Mouse(int button, int state, int x, int y);
 GLvoid Timer(int value);
 //--- 필요한 변수 선언
 GLint width, height;
@@ -33,9 +34,7 @@ std::uniform_real_distribution<float> dis_size(0.05f, 0.15f); // 삼각형 크기용 �
 #define WINDOW_HEIGHT 600
 
 int command = 0;
-
-// 애니메이션 관련 변수
-bool isAnimating = false;
+int selected = -1;
 
 struct Shape {
 	GLenum drawMode;
@@ -57,6 +56,99 @@ float mapToGLCoordX(int x) {
 float mapToGLCoordY(int y) {
 	return 1.0f - (static_cast<float>(y) / (WINDOW_HEIGHT / 2));
 }
+
+bool IsMouseInShape(float x, float y, const Shape& shape) {
+	float dx = x - shape.centerX;
+	float dy = y - shape.centerY;
+
+	// 절댓값으로 변경
+	if (dx < 0) dx = -dx;
+	if (dy < 0) dy = -dy;
+
+	switch (shape.shapeType) {
+	case 1: // 점
+		return (dx <= 0.02f && dy <= 0.02f);	// 사각형 영역
+	case 2: // 선
+		return (dy <= 0.01f && dx <= shape.size * 2); // 선 중심 주변 영역
+	case 3: { // 삼각형
+		// 삼각형의 세 꼭짓점 (AddShape에서 정의된 좌표 기준)
+		float x1 = shape.centerX;           // 위쪽 꼭짓점
+		float y1 = shape.centerY + shape.size * 2;
+		float x2 = shape.centerX - shape.size;   // 왼쪽 아래 꼭짓점
+		float y2 = shape.centerY - shape.size;
+		float x3 = shape.centerX + shape.size;   // 오른쪽 아래 꼭짓점
+		float y3 = shape.centerY - shape.size;
+
+		// 무게중심 좌표를 이용한 삼각형 내부 판별
+		float denominator = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+		if (abs(denominator) < 0.0001f) return false; // 삼각형이 아닌 경우
+
+		float a = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denominator;
+		float b = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denominator;
+		float c = 1 - a - b;
+
+		return (a >= 0 && b >= 0 && c >= 0);
+	}
+	case 4: // 사각형
+		return abs(dx) <= shape.size && abs(dy) <= shape.size; // 사각형 영역
+	case 5: {	// 오각형
+		// 오각형을 구성하는 3개 삼각형에 대해 각각 내부 판별
+
+		// 중앙 삼각형 판별
+		float x1 = shape.centerX;
+		float y1 = shape.centerY + shape.size * 2;
+		float x2 = shape.centerX - shape.size;
+		float y2 = shape.centerY - shape.size * 2;
+		float x3 = shape.centerX + shape.size;
+		float y3 = shape.centerY - shape.size * 2;
+
+		// 무게중심 좌표로 중앙 삼각형 내부 판별
+		float denom1 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+		if (abs(denom1) > 0.0001f) {
+			float a1 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denom1;
+			float b1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denom1;
+			float c1 = 1 - a1 - b1;
+			if (a1 >= 0 && b1 >= 0 && c1 >= 0) return true;
+		}
+
+		// 왼쪽 삼각형 판별
+		x1 = shape.centerX - shape.size * 2;
+		y1 = shape.centerY;
+		x2 = shape.centerX;
+		y2 = shape.centerY + shape.size * 2;
+		x3 = shape.centerX - shape.size;
+		y3 = shape.centerY - shape.size * 2;
+
+		float denom2 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+		if (abs(denom2) > 0.0001f) {
+			float a2 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denom2;
+			float b2 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denom2;
+			float c2 = 1 - a2 - b2;
+			if (a2 >= 0 && b2 >= 0 && c2 >= 0) return true;
+		}
+
+		// 오른쪽 삼각형 판별
+		x1 = shape.centerX + shape.size * 2;
+		y1 = shape.centerY;
+		x2 = shape.centerX;
+		y2 = shape.centerY + shape.size * 2;
+		x3 = shape.centerX + shape.size;
+		y3 = shape.centerY - shape.size * 2;
+
+		float denom3 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+		if (abs(denom3) > 0.0001f) {
+			float a3 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denom3;
+			float b3 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denom3;
+			float c3 = 1 - a3 - b3;
+			if (a3 >= 0 && b3 >= 0 && c3 >= 0) return true;
+		}
+
+		return false;
+	}
+	}  // switch문 닫는 중괄호 추가
+
+	return false;  // 기본 반환값 추가
+}  // 함수 닫는 중괄호 추가
 
 void UpdateBuffer() {
 	if (allVertices.empty()) return;
@@ -187,9 +279,9 @@ void InitShapes() {
 		float x = shape2.centerX;
 		float y = shape2.centerY;
 		float size = shape2.size;
-		allVertices.push_back(x - size); allVertices.push_back(y - size); allVertices.push_back(0.0f);
+		allVertices.push_back(x - size); allVertices.push_back(y); allVertices.push_back(0.0f);
 		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-		allVertices.push_back(x + size); allVertices.push_back(y + size); allVertices.push_back(0.0f);
+		allVertices.push_back(x + size); allVertices.push_back(y); allVertices.push_back(0.0f);
 		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
 
 		shape2.drawMode = GL_LINES;
@@ -290,6 +382,24 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	glutPostRedisplay(); //--- 배경색이 바뀔 때마다 출력 콜백 함수를 호출하여 화면을 refresh 한다
 }
 
+GLvoid Mouse(int button, int state, int x, int y)
+{
+	float Mouse_x = mapToGLCoordX(x);
+	float Mouse_y = mapToGLCoordY(y);
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		selected = -1;
+
+		for (int i = shapes.size() - 1; i >= 0; --i) {
+			if (IsMouseInShape(Mouse_x, Mouse_y, shapes[i])) {
+				selected = i;
+				break;
+			}
+		}
+	}
+
+	glutPostRedisplay(); //--- 배경색이 바뀔 때마다 출력 콜백 함수를 호출하여 화면을 refresh 한다
+}
+
 //--- 다시그리기 콜백 함수
 GLvoid Reshape(int w, int h)
 {
@@ -376,6 +486,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutReshapeFunc(Reshape);
 	InitShapes();
 	// glutTimerFunc(16, Timer, 1); // 타이머 시작
+	glutMouseFunc(Mouse);
 	glutKeyboardFunc(Keyboard); //--- 키보드 입력 콜백함수 지정
 	glutMainLoop(); // 이벤트 처리 시작
 }

@@ -90,14 +90,6 @@ bool IsMouseInShape(float x, float y, const Shape& shape) {
 	return false;
 }
 
-//void MoveShape(int shapeIndex, float deltaX, float deltaY) {
-//	if (shapeIndex < 0 || shapeIndex >= shapes.size()) return;
-//
-//	Shape& shape = shapes[shapeIndex];
-//	int startVertex = shape.startIndex * 3;
-//	int endVertex
-//}
-
 void UpdateBuffer() {
 	if (allVertices.empty()) return;
 
