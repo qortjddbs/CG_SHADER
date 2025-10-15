@@ -127,102 +127,97 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	LineY.targetShapeType = 0;
 
 	shapes.push_back(LineY);
-	// 1사분면 - 삼각형 (0.5, 0.5)
+	
+	// 1사분면 - 삼각형 (0.5, 0.5) - 5개 점으로
 	Shape shape1;
 	shape1.startIndex = allVertices.size() / 3;
 	shape1.centerX = 0.5f; shape1.centerY = 0.5f;
-	// 삼각형: (0, +0.3), (-0.15, -0.15), (+0.15, -0.15)
+	// 삼각형: 꼭짓점 3개 + 왼쪽 변 중점 + 오른쪽 변 중점
+	// 상단 꼭짓점
 	allVertices.push_back(0.5f); allVertices.push_back(0.8f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 좌하 꼭짓점
 	allVertices.push_back(0.35f); allVertices.push_back(0.35f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 우하 꼭짓점
 	allVertices.push_back(0.65f); allVertices.push_back(0.35f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	// 나머지 6개 버텍스는 더미
-	for (int i = 0; i < 6; ++i) {
-		allVertices.push_back(0.65f); allVertices.push_back(0.35f); allVertices.push_back(0.0f);
-		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	}
-	shape1.drawMode = GL_TRIANGLES; shape1.vertexCount = 3;
+	// 왼쪽 변 중점
+	allVertices.push_back(0.425f); allVertices.push_back(0.575f); allVertices.push_back(0.0f);
+	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 오른쪽 변 중점
+	allVertices.push_back(0.575f); allVertices.push_back(0.575f); allVertices.push_back(0.0f);
+	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	
+	shape1.drawMode = GL_LINE_LOOP; shape1.vertexCount = 3;  // 삼각형은 첫 3개 점만 사용
 	shape1.shapeType = 3; shape1.quadrant = 1;
 	shape1.isTransforming = false;
 	shape1.targetShapeType = 3;
 	shapes.push_back(shape1);
 
-	// 2사분면 - 선 (-0.5, 0.5)
+	// 2사분면 - 선 (-0.5, 0.5) - 5개 점이 일직선으로
 	Shape shape2;
 	shape2.startIndex = allVertices.size() / 3;
 	shape2.centerX = -0.5f; shape2.centerY = 0.5f;
-	// 선: (-0.25, -0.25), (+0.25, +0.25)
-	allVertices.push_back(-0.75f); allVertices.push_back(0.25f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(-0.25f); allVertices.push_back(0.75f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	// 나머지 7개 버텍스는 더미
-	for (int i = 0; i < 7; ++i) {
-		allVertices.push_back(-0.25f); allVertices.push_back(0.75f); allVertices.push_back(0.0f);
+	// 선: 5개 점이 일정한 간격으로 일직선으로
+	float lineStartX = -0.75f, lineStartY = 0.25f;
+	float lineEndX = -0.25f, lineEndY = 0.75f;
+	for (int i = 0; i < 5; ++i) {
+		float t = i / 4.0f; // 0, 0.25, 0.5, 0.75, 1.0
+		float x = lineStartX + t * (lineEndX - lineStartX);
+		float y = lineStartY + t * (lineEndY - lineStartY);
+		allVertices.push_back(x); allVertices.push_back(y); allVertices.push_back(0.0f);
 		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
 	}
-	shape2.drawMode = GL_LINES; shape2.vertexCount = 2;
+	
+	shape2.drawMode = GL_LINE_STRIP; shape2.vertexCount = 5;  // 5개 점을 선으로 연결
 	shape2.shapeType = 2; shape2.quadrant = 2;
 	shape2.isTransforming = false;
 	shape2.targetShapeType = 2;
 	shapes.push_back(shape2);
 
-	// 3사분면 - 사각형 (-0.5, -0.5)
+	// 3사분면 - 사각형 (-0.5, -0.5) - 4개 꼭짓점 + 중심
 	Shape shape3;
 	shape3.startIndex = allVertices.size() / 3;
 	shape3.centerX = -0.5f; shape3.centerY = -0.5f;
-	// 사각형을 두 개의 삼각형으로: (-0.25, -0.25), (-0.25, +0.25), (+0.25, +0.25) / (-0.25, -0.25), (+0.25, +0.25), (+0.25, -0.25)
+	// 사각형: 4개 꼭짓점 (시계방향으로 배치)
+	// 좌하 꼭짓점
 	allVertices.push_back(-0.75f); allVertices.push_back(-0.75f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(-0.75f); allVertices.push_back(-0.25f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(-0.25f); allVertices.push_back(-0.25f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(-0.75f); allVertices.push_back(-0.75f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(-0.25f); allVertices.push_back(-0.25f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 우하 꼭짓점
 	allVertices.push_back(-0.25f); allVertices.push_back(-0.75f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	// 나머지 3개 버텍스는 더미
-	for (int i = 0; i < 3; ++i) {
-		allVertices.push_back(-0.25f); allVertices.push_back(-0.75f); allVertices.push_back(0.0f);
-		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	}
-	shape3.drawMode = GL_TRIANGLES; shape3.vertexCount = 6;
+	// 우상 꼭짓점
+	allVertices.push_back(-0.25f); allVertices.push_back(-0.25f); allVertices.push_back(0.0f);
+	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 좌상 꼭짓점
+	allVertices.push_back(-0.75f); allVertices.push_back(-0.25f); allVertices.push_back(0.0f);
+	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	// 중심점 (더미, 사용하지 않음)
+	allVertices.push_back(-0.5f); allVertices.push_back(-0.5f); allVertices.push_back(0.0f);
+	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	
+	shape3.drawMode = GL_LINE_LOOP; shape3.vertexCount = 4;  // 사각형은 첫 4개 점만 사용
 	shape3.shapeType = 4; shape3.quadrant = 3;
 	shape3.isTransforming = false;
 	shape3.targetShapeType = 4;
 	shapes.push_back(shape3);
 
-	// 4사분면 - 오각형 (0.5, -0.5)
+	// 4사분면 - 오각형 (0.5, -0.5) - 5개 꼭짓점
 	Shape shape4;
 	shape4.startIndex = allVertices.size() / 3;
 	shape4.centerX = 0.5f; shape4.centerY = -0.5f;
-	// 중앙 삼각형: (0, +0.3), (-0.15, -0.3), (+0.15, -0.3)
-	allVertices.push_back(0.5f); allVertices.push_back(-0.2f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.35f); allVertices.push_back(-0.8f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.65f); allVertices.push_back(-0.8f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	// 왼쪽 삼각형: (-0.3, +0.05), (0, +0.3), (-0.15, -0.3)
-	allVertices.push_back(0.2f); allVertices.push_back(-0.45f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.5f); allVertices.push_back(-0.2f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.35f); allVertices.push_back(-0.8f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	// 오른쪽 삼각형: (+0.3, +0.05), (0, +0.3), (+0.15, -0.3)
-	allVertices.push_back(0.8f); allVertices.push_back(-0.45f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.5f); allVertices.push_back(-0.2f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	allVertices.push_back(0.65f); allVertices.push_back(-0.8f); allVertices.push_back(0.0f);
-	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
-	shape4.drawMode = GL_TRIANGLES; shape4.vertexCount = 9;
+	// 오각형: 5개 꼭짓점 (정오각형)
+	float radius = 0.3f;
+	for (int i = 0; i < 5; ++i) {
+		float angle = (i * 2.0f * 3.14159f / 5.0f) - (3.14159f / 2.0f); // -90도부터 시작
+		float x = shape4.centerX + radius * cos(angle);
+		float y = shape4.centerY + radius * sin(angle);
+		allVertices.push_back(x); allVertices.push_back(y); allVertices.push_back(0.0f);
+		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
+	}
+	
+	shape4.drawMode = GL_LINE_LOOP; shape4.vertexCount = 5;  // 5개 점을 연결해서 오각형
 	shape4.shapeType = 5; shape4.quadrant = 4;
 	shape4.isTransforming = false;
 	shape4.targetShapeType = 5;
@@ -243,73 +238,61 @@ GLvoid Timer(int value) {
 
 			// 현재 도형 타입과 목표 도형 타입에 따라 변환 처리
 			if (shape.shapeType == 2 && shape.targetShapeType == 3) { // 선 -> 삼각형
-				shape.drawMode = GL_TRIANGLES;
+				shape.drawMode = GL_LINE_LOOP;
 				shape.vertexCount = 3;
 
-				// 첫 번째 점을 삼각형 꼭짓점으로
-				float targetX1 = centerX;
-				float targetY1 = centerY + 0.3f;
-				if (fabs(allVertices[baseIndex] - targetX1) > 0.01f) {
-					allVertices[baseIndex] += (targetX1 - allVertices[baseIndex]) * 0.05f;
-				}
-				if (fabs(allVertices[baseIndex + 1] - targetY1) > 0.01f) {
-					allVertices[baseIndex + 1] += (targetY1 - allVertices[baseIndex + 1]) * 0.05f;
+				// 삼각형 목표 좌표: 꼭짓점 3개
+				float targets[5][2] = {
+					{centerX, centerY + 0.3f},         // 상단 꼭짓점
+					{centerX - 0.15f, centerY - 0.15f}, // 좌하 꼭짓점
+					{centerX + 0.15f, centerY - 0.15f}, // 우하 꼭짓점
+					{centerX - 0.075f, centerY + 0.075f}, // 왼쪽 변 중점 (더미)
+					{centerX + 0.075f, centerY + 0.075f}  // 오른쪽 변 중점 (더미)
+				};
+
+				bool allReached = true;
+				for (int i = 0; i < 5; ++i) {
+					float targetX = targets[i][0];
+					float targetY = targets[i][1];
+					int vertexIndex = baseIndex + i * 3;
+
+					if (fabs(allVertices[vertexIndex] - targetX) > 0.01f) {
+						allVertices[vertexIndex] += (targetX - allVertices[vertexIndex]) * 0.05f;
+						allReached = false;
+					}
+					if (fabs(allVertices[vertexIndex + 1] - targetY) > 0.01f) {
+						allVertices[vertexIndex + 1] += (targetY - allVertices[vertexIndex + 1]) * 0.05f;
+						allReached = false;
+					}
 				}
 
-				// 두 번째 점
-				float targetX2 = centerX - 0.15f;
-				float targetY2 = centerY - 0.15f;
-				if (fabs(allVertices[baseIndex + 3] - targetX2) > 0.01f) {
-					allVertices[baseIndex + 3] += (targetX2 - allVertices[baseIndex + 3]) * 0.05f;
-				}
-				if (fabs(allVertices[baseIndex + 4] - targetY2) > 0.01f) {
-					allVertices[baseIndex + 4] += (targetY2 - allVertices[baseIndex + 4]) * 0.05f;
-				}
-
-				// 세 번째 점
-				float targetX3 = centerX + 0.15f;
-				float targetY3 = centerY - 0.15f;
-				if (fabs(allVertices[baseIndex + 6] - targetX3) > 0.01f) {
-					allVertices[baseIndex + 6] += (targetX3 - allVertices[baseIndex + 6]) * 0.05f;
-				}
-				if (fabs(allVertices[baseIndex + 7] - targetY3) > 0.01f) {
-					allVertices[baseIndex + 7] += (targetY3 - allVertices[baseIndex + 7]) * 0.05f;
-				}
-
-				// 완료 확인
-				if (fabs(allVertices[baseIndex] - targetX1) < 0.01f &&
-					fabs(allVertices[baseIndex + 1] - targetY1) < 0.01f &&
-					fabs(allVertices[baseIndex + 3] - targetX2) < 0.01f &&
-					fabs(allVertices[baseIndex + 4] - targetY2) < 0.01f &&
-					fabs(allVertices[baseIndex + 6] - targetX3) < 0.01f &&
-					fabs(allVertices[baseIndex + 7] - targetY3) < 0.01f) {
-
-					// 정확한 좌표로 재설정
-					allVertices[baseIndex] = targetX1; allVertices[baseIndex + 1] = targetY1; allVertices[baseIndex + 2] = 0.0f;
-					allVertices[baseIndex + 3] = targetX2; allVertices[baseIndex + 4] = targetY2; allVertices[baseIndex + 5] = 0.0f;
-					allVertices[baseIndex + 6] = targetX3; allVertices[baseIndex + 7] = targetY3; allVertices[baseIndex + 8] = 0.0f;
-
+				if (allReached) {
+					for (int i = 0; i < 5; ++i) {
+						int vertexIndex = baseIndex + i * 3;
+						allVertices[vertexIndex] = targets[i][0];
+						allVertices[vertexIndex + 1] = targets[i][1];
+						allVertices[vertexIndex + 2] = 0.0f;
+					}
 					shape.shapeType = 3;
 					shape.targetShapeType = 3;
 					shape.isTransforming = false;
 				}
 			}
 			else if (shape.shapeType == 3 && shape.targetShapeType == 4) { // 삼각형 -> 사각형
-				shape.drawMode = GL_TRIANGLES;
-				shape.vertexCount = 6;
+				shape.drawMode = GL_LINE_LOOP;
+				shape.vertexCount = 4;
 
-				// 사각형을 두 개의 삼각형으로
-				float targets[6][2] = {
+				// 사각형 목표 좌표: 4개 꼭짓점 (시계방향)
+				float targets[5][2] = {
 					{centerX - 0.25f, centerY - 0.25f}, // 좌하
+					{centerX + 0.25f, centerY - 0.25f}, // 우하
+					{centerX + 0.25f, centerY + 0.25f}, // 우상
 					{centerX - 0.25f, centerY + 0.25f}, // 좌상
-					{centerX + 0.25f, centerY + 0.25f}, // 우상
-					{centerX - 0.25f, centerY - 0.25f}, // 좌하
-					{centerX + 0.25f, centerY + 0.25f}, // 우상
-					{centerX + 0.25f, centerY - 0.25f}  // 우하
+					{centerX, centerY}                   // 중심 (더미)
 				};
 
 				bool allReached = true;
-				for (int i = 0; i < 6; ++i) {
+				for (int i = 0; i < 5; ++i) {
 					float targetX = targets[i][0];
 					float targetY = targets[i][1];
 					int vertexIndex = baseIndex + i * 3;
@@ -325,40 +308,32 @@ GLvoid Timer(int value) {
 				}
 
 				if (allReached) {
-					for (int i = 0; i < 6; ++i) {
+					for (int i = 0; i < 5; ++i) {
 						int vertexIndex = baseIndex + i * 3;
 						allVertices[vertexIndex] = targets[i][0];
 						allVertices[vertexIndex + 1] = targets[i][1];
 						allVertices[vertexIndex + 2] = 0.0f;
 					}
-
 					shape.shapeType = 4;
 					shape.targetShapeType = 4;
 					shape.isTransforming = false;
 				}
 			}
 			else if (shape.shapeType == 4 && shape.targetShapeType == 5) { // 사각형 -> 오각형
-				shape.drawMode = GL_TRIANGLES;
-				shape.vertexCount = 9;
+				shape.drawMode = GL_LINE_LOOP;
+				shape.vertexCount = 5;
 
-				// 오각형을 3개의 삼각형으로
-				float targets[9][2] = {
-					// 중앙 삼각형
-					{centerX, centerY + 0.3f},           // 상단
-					{centerX - 0.15f, centerY - 0.3f},   // 좌하
-					{centerX + 0.15f, centerY - 0.3f},   // 우하
-					// 왼쪽 삼각형
-					{centerX - 0.3f, centerY + 0.05f},   // 좌측
-					{centerX, centerY + 0.3f},           // 상단
-					{centerX - 0.15f, centerY - 0.3f},   // 좌하
-					// 오른쪽 삼각형
-					{centerX + 0.3f, centerY + 0.05f},   // 우측
-					{centerX, centerY + 0.3f},           // 상단
-					{centerX + 0.15f, centerY - 0.3f}    // 우하
-				};
+				// 오각형 목표 좌표: 5개 꼭짓점
+				float radius = 0.3f;
+				float targets[5][2];
+				for (int i = 0; i < 5; ++i) {
+					float angle = (i * 2.0f * 3.14159f / 5.0f) - (3.14159f / 2.0f);
+					targets[i][0] = centerX + radius * cos(angle);
+					targets[i][1] = centerY + radius * sin(angle);
+				}
 
 				bool allReached = true;
-				for (int i = 0; i < 9; ++i) {
+				for (int i = 0; i < 5; ++i) {
 					float targetX = targets[i][0];
 					float targetY = targets[i][1];
 					int vertexIndex = baseIndex + i * 3;
@@ -374,7 +349,7 @@ GLvoid Timer(int value) {
 				}
 
 				if (allReached) {
-					for (int i = 0; i < 9; ++i) {
+					for (int i = 0; i < 5; ++i) {
 						int vertexIndex = baseIndex + i * 3;
 						allVertices[vertexIndex] = targets[i][0];
 						allVertices[vertexIndex + 1] = targets[i][1];
@@ -386,34 +361,45 @@ GLvoid Timer(int value) {
 				}
 			}
 			else if (shape.shapeType == 5 && shape.targetShapeType == 2) { // 오각형 -> 선
-				shape.drawMode = GL_LINES;
-				shape.vertexCount = 2;
+				shape.drawMode = GL_LINE_STRIP;
+				shape.vertexCount = 5;
 
-				// 첫 번째 점
-				float targetX1 = centerX - 0.25f;
-				float targetY1 = centerY - 0.25f;
-				if (fabs(allVertices[baseIndex] - targetX1) > 0.01f) {
-					allVertices[baseIndex] += (targetX1 - allVertices[baseIndex]) * 0.05f;
-				}
-				if (fabs(allVertices[baseIndex + 1] - targetY1) > 0.01f) {
-					allVertices[baseIndex + 1] += (targetY1 - allVertices[baseIndex + 1]) * 0.05f;
-				}
+				// 선 목표 좌표: 5개 점이 일직선으로
+				float lineStartX = centerX - 0.25f;
+				float lineStartY = centerY - 0.25f;
+				float lineEndX = centerX + 0.25f;
+				float lineEndY = centerY + 0.25f;
 
-				// 두 번째 점
-				float targetX2 = centerX + 0.25f;
-				float targetY2 = centerY + 0.25f;
-				if (fabs(allVertices[baseIndex + 3] - targetX2) > 0.01f) {
-					allVertices[baseIndex + 3] += (targetX2 - allVertices[baseIndex + 3]) * 0.05f;
-				}
-				if (fabs(allVertices[baseIndex + 4] - targetY2) > 0.01f) {
-					allVertices[baseIndex + 4] += (targetY2 - allVertices[baseIndex + 4]) * 0.05f;
+				float targets[5][2];
+				for (int i = 0; i < 5; ++i) {
+					float t = i / 4.0f;
+					targets[i][0] = lineStartX + t * (lineEndX - lineStartX);
+					targets[i][1] = lineStartY + t * (lineEndY - lineStartY);
 				}
 
-				// 완료 확인
-				if (fabs(allVertices[baseIndex] - targetX1) < 0.01f &&
-					fabs(allVertices[baseIndex + 1] - targetY1) < 0.01f &&
-					fabs(allVertices[baseIndex + 3] - targetX2) < 0.01f &&
-					fabs(allVertices[baseIndex + 4] - targetY2) < 0.01f) {
+				bool allReached = true;
+				for (int i = 0; i < 5; ++i) {
+					float targetX = targets[i][0];
+					float targetY = targets[i][1];
+					int vertexIndex = baseIndex + i * 3;
+
+					if (fabs(allVertices[vertexIndex] - targetX) > 0.01f) {
+						allVertices[vertexIndex] += (targetX - allVertices[vertexIndex]) * 0.05f;
+						allReached = false;
+					}
+					if (fabs(allVertices[vertexIndex + 1] - targetY) > 0.01f) {
+						allVertices[vertexIndex + 1] += (targetY - allVertices[vertexIndex + 1]) * 0.05f;
+						allReached = false;
+					}
+				}
+
+				if (allReached) {
+					for (int i = 0; i < 5; ++i) {
+						int vertexIndex = baseIndex + i * 3;
+						allVertices[vertexIndex] = targets[i][0];
+						allVertices[vertexIndex + 1] = targets[i][1];
+						allVertices[vertexIndex + 2] = 0.0f;
+					}
 					shape.shapeType = 2;
 					shape.targetShapeType = 2;
 					shape.isTransforming = false;

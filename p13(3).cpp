@@ -71,19 +71,219 @@ float mapToGLCoordY(int y) {
 	return 1.0f - (static_cast<float>(y) / (WINDOW_HEIGHT / 2));
 }
 
-// 두 도형이 겹치는지 확인하는 함수
-bool AreShapesOverlapping(const Shape& shape1, const Shape& shape2) {
-	float dx = shape1.centerX - shape2.centerX;
-	float dy = shape1.centerY - shape2.centerY;
+// 점과 점의 충돌 검사
+bool PointPointCollision(const Shape& point1, const Shape& point2) {
+	float dx = point1.centerX - point2.centerX;
+	float dy = point1.centerY - point2.centerY;
 	float distance = sqrt(dx * dx + dy * dy);
-
-	// 두 도형의 크기를 고려한 충돌 거리 계산
-	float collisionDistance = (shape1.size + shape2.size) * 1.5f;
-
-	return distance < collisionDistance;
+	return distance < 0.04f; // 점의 크기를 고려한 최소 거리
 }
 
-// 새로운 도형을 생성하는 함수
+// 점과 선의 충돌 검사
+bool PointLineCollision(const Shape& point, const Shape& line) {
+	// 선의 양 끝점
+	float x1 = line.centerX - line.size;
+	float y1 = line.centerY;
+	float x2 = line.centerX + line.size;
+	float y2 = line.centerY;
+
+	// 점에서 선까지의 거리 계산
+	float A = y2 - y1;
+	float B = x1 - x2;
+	float C = x2 * y1 - x1 * y2;
+	float distance = abs(A * point.centerX + B * point.centerY + C) / sqrt(A * A + B * B);
+
+	// 점이 선분 범위 내에 있는지 확인
+	float minX = (x1 < x2) ? x1 : x2;
+	float maxX = (x1 > x2) ? x1 : x2;
+	bool inRange = (point.centerX >= minX - 0.02f && point.centerX <= maxX + 0.02f);
+
+	return distance < 0.02f && inRange;
+}
+
+// 점과 삼각형의 충돌 검사
+bool PointTriangleCollision(const Shape& point, const Shape& triangle) {
+	// 삼각형의 세 꼭짓점
+	float x1 = triangle.centerX;
+	float y1 = triangle.centerY + triangle.size * 2;
+	float x2 = triangle.centerX - triangle.size;
+	float y2 = triangle.centerY - triangle.size;
+	float x3 = triangle.centerX + triangle.size;
+	float y3 = triangle.centerY - triangle.size;
+
+	// 무게중심 좌표를 이용한 삼각형 내부 판별
+	float denominator = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+	if (abs(denominator) < 0.0001f) return false;
+
+	float a = ((y2 - y3) * (point.centerX - x3) + (x3 - x2) * (point.centerY - y3)) / denominator;
+	float b = ((y3 - y1) * (point.centerX - x3) + (x1 - x3) * (point.centerY - y3)) / denominator;
+	float c = 1 - a - b;
+
+	return (a >= -0.01f && b >= -0.01f && c >= -0.01f); // 약간의 여유를 둠
+}
+
+// 점과 사각형의 충돌 검사
+bool PointRectangleCollision(const Shape& point, const Shape& rectangle) {
+	float dx = abs(point.centerX - rectangle.centerX);
+	float dy = abs(point.centerY - rectangle.centerY);
+	return dx <= rectangle.size + 0.02f && dy <= rectangle.size + 0.02f;
+}
+
+// 점과 오각형의 충돌 검사
+bool PointPentagonCollision(const Shape& point, const Shape& pentagon) {
+	// 오각형을 구성하는 3개 삼각형에 대해 각각 내부 판별
+
+	// 중앙 삼각형
+	float x1 = pentagon.centerX;
+	float y1 = pentagon.centerY + pentagon.size * 2;
+	float x2 = pentagon.centerX - pentagon.size;
+	float y2 = pentagon.centerY - pentagon.size * 2;
+	float x3 = pentagon.centerX + pentagon.size;
+	float y3 = pentagon.centerY - pentagon.size * 2;
+
+	float denom1 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+	if (abs(denom1) > 0.0001f) {
+		float a1 = ((y2 - y3) * (point.centerX - x3) + (x3 - x2) * (point.centerY - y3)) / denom1;
+		float b1 = ((y3 - y1) * (point.centerX - x3) + (x1 - x3) * (point.centerY - y3)) / denom1;
+		float c1 = 1 - a1 - b1;
+		if (a1 >= -0.01f && b1 >= -0.01f && c1 >= -0.01f) return true;
+	}
+
+	// 왼쪽 삼각형
+	x1 = pentagon.centerX - pentagon.size * 2;
+	y1 = pentagon.centerY;
+	x2 = pentagon.centerX;
+	y2 = pentagon.centerY + pentagon.size * 2;
+	x3 = pentagon.centerX - pentagon.size;
+	y3 = pentagon.centerY - pentagon.size * 2;
+
+	float denom2 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+	if (abs(denom2) > 0.0001f) {
+		float a2 = ((y2 - y3) * (point.centerX - x3) + (x3 - x2) * (point.centerY - y3)) / denom2;
+		float b2 = ((y3 - y1) * (point.centerX - x3) + (x1 - x3) * (point.centerY - y3)) / denom2;
+		float c2 = 1 - a2 - b2;
+		if (a2 >= -0.01f && b2 >= -0.01f && c2 >= -0.01f) return true;
+	}
+
+	// 오른쪽 삼각형
+	x1 = pentagon.centerX + pentagon.size * 2;
+	y1 = pentagon.centerY;
+	x2 = pentagon.centerX;
+	y2 = pentagon.centerY + pentagon.size * 2;
+	x3 = pentagon.centerX + pentagon.size;
+	y3 = pentagon.centerY - pentagon.size * 2;
+
+	float denom3 = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+	if (abs(denom3) > 0.0001f) {
+		float a3 = ((y2 - y3) * (point.centerX - x3) + (x3 - x2) * (point.centerY - y3)) / denom3;
+		float b3 = ((y3 - y1) * (point.centerX - x3) + (x1 - x3) * (point.centerY - y3)) / denom3;
+		float c3 = 1 - a3 - b3;
+		if (a3 >= -0.01f && b3 >= -0.01f && c3 >= -0.01f) return true;
+	}
+
+	return false;
+}
+
+// 선과 선의 충돌 검사
+bool LineLineCollision(const Shape& line1, const Shape& line2) {
+	// 첫 번째 선의 양 끝점
+	float x1 = line1.centerX - line1.size;
+	float y1 = line1.centerY;
+	float x2 = line1.centerX + line1.size;
+	float y2 = line1.centerY;
+
+	// 두 번째 선의 양 끝점
+	float x3 = line2.centerX - line2.size;
+	float y3 = line2.centerY;
+	float x4 = line2.centerX + line2.size;
+	float y4 = line2.centerY;
+
+	// 두 선분이 교차하는지 확인
+	float denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+	if (abs(denom) < 0.0001f) {
+		// 평행한 경우, 거리로 판단
+		float distance = abs(y1 - y3);
+		float xOverlap = !(x2 < x3 - 0.02f || x4 < x1 - 0.02f);
+		return distance < 0.02f && xOverlap;
+	}
+
+	float t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+	float u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+
+	return (t >= 0 && t <= 1 && u >= 0 && u <= 1);
+}
+
+// 사각형과 사각형의 충돌 검사 (AABB)
+bool RectangleRectangleCollision(const Shape& rect1, const Shape& rect2) {
+	float left1 = rect1.centerX - rect1.size;
+	float right1 = rect1.centerX + rect1.size;
+	float top1 = rect1.centerY + rect1.size;
+	float bottom1 = rect1.centerY - rect1.size;
+
+	float left2 = rect2.centerX - rect2.size;
+	float right2 = rect2.centerX + rect2.size;
+	float top2 = rect2.centerY + rect2.size;
+	float bottom2 = rect2.centerY - rect2.size;
+
+	return !(right1 < left2 || left1 > right2 || top1 < bottom2 || bottom1 > top2);
+}
+
+// 개선된 두 도형이 겹치는지 확인하는 함수
+bool AreShapesOverlapping(const Shape& shape1, const Shape& shape2) {
+	// 동일한 도형끼리의 충돌 검사
+	if (shape1.shapeType == 1 && shape2.shapeType == 1) {
+		return PointPointCollision(shape1, shape2);
+	}
+	else if (shape1.shapeType == 2 && shape2.shapeType == 2) {
+		return LineLineCollision(shape1, shape2);
+	}
+	else if (shape1.shapeType == 4 && shape2.shapeType == 4) {
+		return RectangleRectangleCollision(shape1, shape2);
+	}
+
+	// 점과 다른 도형들의 충돌 검사
+	else if (shape1.shapeType == 1) {
+		switch (shape2.shapeType) {
+		case 2: return PointLineCollision(shape1, shape2);
+		case 3: return PointTriangleCollision(shape1, shape2);
+		case 4: return PointRectangleCollision(shape1, shape2);
+		case 5: return PointPentagonCollision(shape1, shape2);
+		}
+	}
+	else if (shape2.shapeType == 1) {
+		switch (shape1.shapeType) {
+		case 2: return PointLineCollision(shape2, shape1);
+		case 3: return PointTriangleCollision(shape2, shape1);
+		case 4: return PointRectangleCollision(shape2, shape1);
+		case 5: return PointPentagonCollision(shape2, shape1);
+		}
+	}
+
+	// 복잡한 도형들의 경우 기존 방식 사용 (향후 개선 가능)
+	else {
+		float dx = shape1.centerX - shape2.centerX;
+		float dy = shape1.centerY - shape2.centerY;
+		float distance = sqrt(dx * dx + dy * dy);
+
+		// 도형 타입에 따른 적절한 충돌 거리 계산
+		float collisionDistance;
+		if ((shape1.shapeType == 3 || shape1.shapeType == 4 || shape1.shapeType == 5) &&
+			(shape2.shapeType == 3 || shape2.shapeType == 4 || shape2.shapeType == 5)) {
+			collisionDistance = (shape1.size + shape2.size) * 1.2f;
+		}
+		else if (shape1.shapeType == 2 || shape2.shapeType == 2) {
+			collisionDistance = (shape1.size + shape2.size) * 0.8f;
+		}
+		else {
+			collisionDistance = (shape1.size + shape2.size) * 1.0f;
+		}
+
+		return distance < collisionDistance;
+	}
+
+	return false;
+}
+
 // 새로운 도형을 생성하는 함수 (고정 색상 사용)
 void CreateShape(int shapeType, float centerX, float centerY, float size, bool animated = false) {
 	Shape newShape;
