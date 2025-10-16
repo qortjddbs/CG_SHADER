@@ -197,7 +197,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 	allVertices.push_back(-0.5f); allVertices.push_back(-0.5f); allVertices.push_back(0.0f);
 	allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
 	
-	shape3.drawMode = GL_LINE_LOOP; shape3.vertexCount = 4;  // 사각형은 첫 4개 점만 사용
+	shape3.drawMode = GL_TRIANGLES; shape3.vertexCount = 4;  // 사각형은 첫 4개 점만 사용
 	shape3.shapeType = 4; shape3.quadrant = 3;
 	shape3.isTransforming = false;
 	shape3.targetShapeType = 4;
@@ -217,7 +217,7 @@ void InitShapes() {	// x,y 축하고 각 사분면마다 삼각형 하나씩
 		allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen)); allColors.push_back(dis_color(gen));
 	}
 	
-	shape4.drawMode = GL_LINE_LOOP; shape4.vertexCount = 5;  // 5개 점을 연결해서 오각형
+	shape4.drawMode = GL_TRIANGLES; shape4.vertexCount = 5;  // 5개 점을 연결해서 오각형
 	shape4.shapeType = 5; shape4.quadrant = 4;
 	shape4.isTransforming = false;
 	shape4.targetShapeType = 5;
